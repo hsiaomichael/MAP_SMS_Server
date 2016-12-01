@@ -1,0 +1,74 @@
+#!/usr/bin/python
+
+########################################################################################
+#
+# Filename:   MAP_Server 
+#  
+# Description
+# ===========
+# 
+#
+#
+# Author    : Michael Hsiao 
+#
+# Date      : 2016/11/2-
+# Desc      : MAP SMS Server
+
+import sys
+import PCA_GenLib
+import PCA_M3UAServerSocket
+
+############################################################################\
+#
+############################################################################
+def Server(XMLCFG):
+  try:
+	print 'Start Server ...'
+	try:
+		PCA_GenLib.DBXMLCFGInit(XMLCFG)		
+		try:	
+			Msg = "Server StartUp ... 2016/11/20 Version 1.0"
+			PCA_GenLib.WriteLog(Msg,0)	
+			TimeOut = 2.5
+			MAPServer = PCA_M3UAServerSocket.Acceptor(XMLCFG)
+                        try:
+                          MAPServer.dispatcher(TimeOut=1.0)
+                        finally:				
+                          MAPServer.close()
+		finally:
+			
+			PCA_GenLib.WriteLog(Msg,0)
+	finally:
+	
+		PCA_GenLib.CloseLog()
+  except IOError:        
+	print "IO error"
+	print '< ',sys.exc_type,sys.exc_value,' >'
+
+  except:
+   	print 'err uncaught ! < ',sys.exc_type,sys.exc_value,' >'
+
+############################################################################
+#
+############################################################################
+if __name__ == '__main__':
+  
+  try:	
+  	print "Open cfg file"
+        try:
+		
+		filename =  sys.argv[1]
+        	XMLCFG =  open(filename,"r").read()
+	except IOError:
+		XMLCFG =  open("MAPServer.cfg","r").read()
+		
+
+	Server(XMLCFG)
+  except:
+  	print "MAPServer.cfg configuration file not found"
+ 	print "Msg = : <%s>,<%s>" % (sys.exc_type,sys.exc_value)
+  	sys.exit()
+
+   	
+  print "Bye !"
+	
