@@ -37,6 +37,7 @@ class Handler(PCA_Parser.ContentHandler):
         self.M3UAMessage = PCA_M3UAMessage.Writer(XMLCFG)
         #self.SCTP_Message = self.M3UAMessage.getASPSM_BEAT()
         self.SCTP_Message = None
+       
 		
   def startDocument(self):
        self.ExtraSocketData = ''
@@ -78,7 +79,7 @@ class Handler(PCA_Parser.ContentHandler):
       PCA_GenLib.WriteLog(Msg,9)
 			
       Msg = "%-15s=<%-25s>,Hex=%s" % (self.MessageName ,content,PCA_GenLib.HexDump(self.attrs))
-      PCA_GenLib.WriteLog(Msg,1)
+      PCA_GenLib.WriteLog(Msg,3)
       self.Message[self.MessageName] = (content,self.attrs)
       
       if content == "ASP Up (ASPUP)":
@@ -89,6 +90,9 @@ class Handler(PCA_Parser.ContentHandler):
         self.SCTP_Message = self.M3UAMessage.getASPSM_BEAT_Ack()
       elif content == "Heartbeat Acknowledgement (BEAT ACK)":
         self.SCTP_Message = None
+      elif content == "Payload Data (DATA)":
+        self.SCTP_Message = None
+
 
 
 

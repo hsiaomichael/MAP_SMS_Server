@@ -1,0 +1,1 @@
+python MAPServer MAPServer.cfg

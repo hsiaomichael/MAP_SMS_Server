@@ -26,7 +26,53 @@ import PCA_GenLib
 import PCA_XMLParser
 import PCA_SCTPServerSocket
 import PCA_M3UAResponseParser
+import PCA_M3UAMessage
 
+
+def getDetailMessage(message,parameter_list,display_flags):
+  try:
+        Msg = "-----------------------------------------------------------------"
+        PCA_GenLib.WriteLog(Msg,2)
+        sccp_msg_dict = {}
+        for m3ua_key in sorted(message):
+           if m3ua_key == "M3UA sccp_msg_dict":
+             sccp_msg_dict = message[m3ua_key][0]            
+           else:
+             Msg = "<%s>=<%s>,hex=<%s>*" % (m3ua_key,message[m3ua_key][0],PCA_GenLib.getHexString(message[m3ua_key][1]))
+             PCA_GenLib.WriteLog(Msg,display_flags)
+             parameter_list[m3ua_key] = message[m3ua_key]
+
+        tcap_msg_dict = {}
+        for sccp_key in sorted(sccp_msg_dict):
+          if sccp_key == "SCCP tcap_msg_dict":
+            tcap_msg_dict = sccp_msg_dict[sccp_key][0]                
+          else:
+            Msg = "<%s>=<%s>,hex=<%s>*" % (sccp_key,sccp_msg_dict[sccp_key][0],PCA_GenLib.getHexString(sccp_msg_dict[sccp_key][1]))
+            PCA_GenLib.WriteLog(Msg,display_flags)
+            parameter_list[sccp_key] = sccp_msg_dict[sccp_key]
+
+
+        map_msg_dict = {}
+        for tcap_key in sorted(tcap_msg_dict):
+          if tcap_key == "TCAP map_msg_dict":
+            map_msg_dict = tcap_msg_dict[tcap_key][0]                
+          else:
+            Msg = "<%s>=<%s>,hex=<%s>*" % (tcap_key,tcap_msg_dict[tcap_key][0],PCA_GenLib.getHexString(tcap_msg_dict[tcap_key][1]))
+            PCA_GenLib.WriteLog(Msg,display_flags)
+            parameter_list[tcap_key] = tcap_msg_dict[tcap_key]
+
+        for map_key in sorted(map_msg_dict):
+          Msg = "<%s>=<%s>,hex=<%s>*" % (map_key,map_msg_dict[map_key][0],PCA_GenLib.getHexString(map_msg_dict[map_key][1]))
+          PCA_GenLib.WriteLog(Msg,display_flags)
+          parameter_list[map_key] = map_msg_dict[map_key]
+
+        Msg = "-----------------------------------------------------------------"
+        PCA_GenLib.WriteLog(Msg,2)
+        #return parameter_list
+  except:
+    Msg = "getDetailMessage error : <%s>,<%s> " % (sys.exc_type,sys.exc_value)
+    PCA_GenLib.WriteLog(Msg,0)
+    raise
 
 class Acceptor(PCA_SCTPServerSocket.Acceptor):
  
@@ -43,6 +89,8 @@ class Acceptor(PCA_SCTPServerSocket.Acceptor):
      self.parser = PCA_M3UAResponseParser.Parser()
      self.handler = PCA_M3UAResponseParser.Handler(XMLCFG)
      self.parser.setContentHandler(self.handler)
+     self.M3UAMessage = PCA_M3UAMessage.Writer(XMLCFG)
+
 
      Msg = "Acceptor OK"
      PCA_GenLib.WriteLog(Msg,0)   
@@ -133,13 +181,33 @@ class Acceptor(PCA_SCTPServerSocket.Acceptor):
 
      ServerID = self.handler.getTID()
      DebugStr = self.handler.getDebugStr()
-     Msg = "send : %s*" % DebugStr
+     Msg = "recv : %s*" % DebugStr
      PCA_GenLib.WriteLog(Msg,1)
      Message = self.handler.getSCTPResponse()
+
+     if response_message['M3UA Message Class'][0] == "Transfer Messages":
+       request_parameter_list = {}
+       getDetailMessage(response_message,request_parameter_list,3)
+       Message = self.M3UAMessage.getPayloadData("MO-FSM-Ack",request_parameter_list,request_parameter_list)
+       self.parser.parse(Message)
+       response_message = self.handler.getHandlerResponse()
+
+       ServerID = self.handler.getTID()
+       DebugStr = self.handler.getDebugStr()
+       Msg = "send : %s*" % DebugStr
+       PCA_GenLib.WriteLog(Msg,1)
+     
+
      if Message != None:
        Msg = "send = *\n%s\n*" % PCA_GenLib.HexDump(Message)
        PCA_GenLib.WriteLog(Msg,1)
+       
+
+
        self.sendDataToSocket(conn,Message)
+       
+#Message = self.M3UAMessage.getPayloadData("SRI-Ack",mo_fsm_message_request,mo_fsm_message_request)
+
 
      Msg = "handle_event OK"
      PCA_GenLib.WriteLog(Msg,9)   
