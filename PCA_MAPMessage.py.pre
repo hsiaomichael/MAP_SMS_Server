@@ -168,7 +168,10 @@ class Writer:
         MAP_Tag = chr(0xa2)
         udhi = chr(0x01)
 
-        tp_parameter_indicator = chr(0x00)       
+
+
+        tp_parameter_indicator = chr(0x00)
+        
 
         CurrentSeconds = time.time()	
 	date_tuple =  time.localtime(CurrentSeconds)		
@@ -181,15 +184,21 @@ class Writer:
         MI = "%02d" % date_tuple[4]
         SS = "%02d" % date_tuple[5]
 
+
+
         YYYYMMDD1 = YY + MM + DD
         YYYYMMDD = PCA_GenLib.converStringToReverseBCD(YYYYMMDD1)
 
         HHMISS1 = HH + MI + SS
         HHMISS = PCA_GenLib.converStringToReverseBCD(HHMISS1)
+       
+
 
         TimeZone = chr(0x23)
         tp_sc_timestamp = YYYYMMDD + HHMISS + TimeZone
         SM_RP_UI_data_parameter = udhi + tp_parameter_indicator + tp_sc_timestamp
+
+
         
         tag = chr(0x04)
         tag_data = SM_RP_UI_data_parameter 
@@ -202,6 +211,7 @@ class Writer:
         tag = chr(0x02)
         tag_data = parameter_list["MAP opCode"][1]
         opCode = self.constructTLV(tag,tag_data)
+
 
         tag = chr(0x30)
         tag_data = opCode + SM_RP_UI
@@ -241,58 +251,14 @@ class Writer:
 
        
         tag = chr(0x02)
-        tag_data = chr(0x02)
+        tag_data = chr(0x2d)
         opCode = self.constructTLV(tag,tag_data)
 
           
         tag = chr(0x02)
-        tag_data = chr(0x7d)
+        tag_data = chr(0x02)
         invoke_id = self.constructTLV(tag,tag_data)
         map_data = invoke_id + opCode + address_info
-
-      elif map_type == "SRI-SM-Ack":
-        Msg = "construct SRI-SM-Ack"
-        PCA_GenLib.WriteLog(Msg,1)
-        MAP_Tag = chr(0xa2)
-       
-        noa = chr(0x91)
-        
-        nnn = PCA_GenLib.converStringToReverseBCD("886935000999")
-        tag = chr(0x81)
-        tag_data = noa + nnn
-        locationinfo_with_LMSI = self.constructTLV(tag,tag_data)
-
-        tag = chr(0xa0)
-        tag_data = locationinfo_with_LMSI
-        location_data = self.constructTLV(tag,tag_data)
-
-        #digits = PCA_GenLib.converStringToReverseBCD("4669767890123415")
-        digits = chr(0x64)+chr(0x96)+chr(0x67) + chr(0x87) + chr(0x09) + chr(0x21) + chr(0x43) + chr(0xf5)
-        tag = chr(0x04)
-        tag_data = digits 
-        IMSI_data = self.constructTLV(tag,tag_data)
-
-        tag = chr(0x30)
-        tag_data = IMSI_data + location_data 
-        recipient_info = self.constructTLV(tag,tag_data)      
-      
- 
-        tag = chr(0x02)
-        tag_data = chr(0x2d)
-        opCode = self.constructTLV(tag,tag_data)
-
-        
-        tag = chr(0x30)
-        tag_data = opCode + recipient_info
-        result_tretres = self.constructTLV(tag,tag_data)
-         
-        tag = chr(0x02)
-        try:
-          tag_data = parameter_list["MAP invoke value"][1]
-        except:
-          tag_data = chr(0x7d)
-        invoke_id = self.constructTLV(tag,tag_data)
-        map_data = invoke_id + result_tretres
 
       elif map_type == "MT-FSM":
         Msg = "construct MT-FSM request"
@@ -376,39 +342,16 @@ class Writer:
         invoke_id = self.constructTLV(tag,tag_data)
         map_data = invoke_id + opCode + address_info
 
-      # MT-FSM ack 
       else:
-        MAP_Tag = chr(0xa2)
-        #tag = chr(0x02)
-        #tag_data = chr(0x24) 
-        #result_tretres = self.constructTLV(tag,tag_data)
-
-
-       
+        MAP_Tag = chr(0xa3)
         tag = chr(0x02)
-        tag_data = parameter_list["MAP opCode"][1]
-        opCode = self.constructTLV(tag,tag_data)
-
-       
-        tag = chr(0x04)
-        tag_data = chr(0x00)+chr(0x00)
-        SM_RP_UI_data = self.constructTLV(tag,tag_data)
-
-        tag = chr(0x30)
-        tag_data = SM_RP_UI_data
-        SM_RP_UI = self.constructTLV(tag,tag_data)
-
-        tag = chr(0x30)
-        tag_data = opCode + SM_RP_UI
+        tag_data = chr(0x24) 
         result_tretres = self.constructTLV(tag,tag_data)
 
-
-
-
         tag = chr(0x02)
-        tag_data =  parameter_list["MAP invoke_id"][1]
+        tag_data = chr(0x02)
         invoke_id = self.constructTLV(tag,tag_data)
-       
+ 
         map_data = invoke_id + result_tretres
 
       message_length = len(map_data) 
@@ -417,8 +360,8 @@ class Writer:
       map_message = MAP_Tag + message_length_hex + map_data
       self.Message = map_message
 
-      Msg = "DEBUG MAP = *\n%s\n*" % PCA_GenLib.HexDump(self.Message)
-      PCA_GenLib.WriteLog(Msg,3)
+      #Msg = "DEBUG MAP = *\n%s\n*" % PCA_GenLib.HexDump(self.Message)
+      #PCA_GenLib.WriteLog(Msg,0)
       return self.Message
     except:
      Msg = "getMessage Error :<%s>,<%s>" % (sys.exc_type,sys.exc_value)

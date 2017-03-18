@@ -65,8 +65,7 @@ class Writer:
     try:	
       
       message_type = struct.pack("!b",self.message_type)
-      #Protocol_Class = chr(0x00) # parameter_list["SCCP Protocol Class"][1]
-      Protocol_Class = chr(0x80) 
+      Protocol_Class = chr(0x00) # parameter_list["SCCP Protocol Class"][1]
       
       #hoop_counter = parameter_list["SCCP Hop Counter"][1]
       hoop_counter = chr(0x0f)
@@ -83,7 +82,7 @@ class Writer:
        
         GT = TT + Numbering_plan + NoA + Digits
         address_indicator = chr(0x12)
-        if map_type == "SRI-SM" or map_type == "MT-FSM":
+        if map_type == "SRI-SM":
           SSN = chr(0x06)
         else:
           SSN = chr(0x08)
@@ -135,11 +134,7 @@ class Writer:
         TT = parameter_list["SCCP called Translation Type"][1]
         Numbering_plan = parameter_list["SCCP called Numbering plan"][1]
         NoA = parameter_list["SCCP called Nature of Addr"][1]
-        if map_type == "SRI-SM-Ack":
-          Digits = PCA_GenLib.converStringToReverseBCD(self.sc_address)
-        else:
-          Digits = parameter_list["SCCP called Digits"][1]
-
+        Digits = parameter_list["SCCP called Digits"][1]
         GT = TT + Numbering_plan + NoA + Digits
         calling_address = parameter_list["SCCP called Address Indicator"][1] + parameter_list["SCCP called SSN"][1] + GT
 

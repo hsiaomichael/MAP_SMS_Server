@@ -181,25 +181,14 @@ class Acceptor(PCA_SCTPServerSocket.Acceptor):
 
      ServerID = self.handler.getTID()
      DebugStr = self.handler.getDebugStr()
-     if string.find(DebugStr,"BEAT") == -1:
-       Msg = "----------------------------------------------------------------------------------"
-       PCA_GenLib.WriteLog(Msg,1)
-       Msg = "recv : %s*" % DebugStr
-       PCA_GenLib.WriteLog(Msg,1)
-     
-     #Message = self.handler.getSCTPResponse()
+     Msg = "recv : %s*" % DebugStr
+     PCA_GenLib.WriteLog(Msg,1)
+     Message = self.handler.getSCTPResponse()
 
      if response_message['M3UA Message Class'][0] == "Transfer Messages":
        request_parameter_list = {}
        getDetailMessage(response_message,request_parameter_list,3)
-      
-       map_type = "SRI-SM-Ack"
-       if string.find(DebugStr,"SRI") != -1:
-         map_type = "SRI-SM-Ack"
-       else:
-         map_type = "MT-FSM-Ack"
-         
-       Message = self.M3UAMessage.getPayloadData(map_type,request_parameter_list,request_parameter_list)
+       Message = self.M3UAMessage.getPayloadData("MO-FSM-Ack",request_parameter_list,request_parameter_list)
        self.parser.parse(Message)
        response_message = self.handler.getHandlerResponse()
 
@@ -207,17 +196,11 @@ class Acceptor(PCA_SCTPServerSocket.Acceptor):
        DebugStr = self.handler.getDebugStr()
        Msg = "send : %s*" % DebugStr
        PCA_GenLib.WriteLog(Msg,1)
-     else:
-       #ASP Up (ASPUP) or "ASP Active (ASPAC) or "Heartbeat (BEAT)" or Heartbeat Acknowledgement (BEAT ACK)"
-       Message = self.handler.getSCTPResponse()
      
 
      if Message != None:
        Msg = "send = *\n%s\n*" % PCA_GenLib.HexDump(Message)
-       PCA_GenLib.WriteLog(Msg,2)
-       #if string.find(DebugStr,"BEAT") == -1:
-       #  Msg = "send : %s*" % DebugStr
-       #  PCA_GenLib.WriteLog(Msg,1)
+       PCA_GenLib.WriteLog(Msg,1)
        
 
 

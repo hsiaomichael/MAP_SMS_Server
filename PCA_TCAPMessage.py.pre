@@ -206,8 +206,8 @@ class Writer:
       # <MAP component_type_invoke:a1>=<0201020.......82009099041411000c918896820000200000020661f138269b01>
       # <MAP invoke_id:02>=<02>
       # <MAP opCode:02>=<mo-ForwardSM>
-      if map_type == "MO-FSM-Ack" or "SRI-SM-Ack" or "MT-FSM-Ack":
-       
+
+      if map_type == "MO-FSM-Ack":
         TCAP_Tag = chr(0x64)
         ###############################################
         # Transaction Portion 
@@ -240,12 +240,14 @@ class Writer:
         app_result = self.constructTLV(app_result_tag,app_result_value)
         result_tag = chr(0xa2)
         result_TLV = self.constructTLV(result_tag,app_result)
+
       
+        #dialog_response = self.constructTLV(Application_Context_Tag,Application_Context)
         dialog_response = Application_Context_TLV+result_TLV+result_source_diag_TLV
         dialog_response_tag = chr(0x61)
         dialog_response_TLV = self.constructTLV(dialog_response_tag,dialog_response)
       
-      
+        #Single_ASN1 = self.constructTLV(dialog_response_tag,dialog_response) 
         Single_ASN1_Tag = chr(0xa0)
         Single_ASN1_TLV = self.constructTLV(Single_ASN1_Tag,dialog_response_TLV) 
 
@@ -261,8 +263,6 @@ class Writer:
       
         dialog_portion_tag = chr(0x6b)     
         dialog_portion = self.constructTLV(dialog_portion_tag,tcap_external_tlv)
-
-     
       elif map_type == "SRI-SM":
         TCAP_Tag = chr(0x62)
         ###############################################
@@ -346,7 +346,7 @@ class Writer:
         dialog_portion = self.constructTLV(dialog_portion_tag,tcap_external_tlv)
       else:
         Msg = "unknow map_type = %s" % map_type
-        PCA_GenLib.WriteLog(Msg,0)
+        PCA_GenLib.WriteLog(Msg,1)
  
       ###############################################
       # Component Portion -- MAP
