@@ -44,6 +44,11 @@ class Writer:
       Tag = "MESSAGE_TYPE"
       self.message_type = int(PCA_XMLParser.GetXMLTagValue(XMLCFG,Tag))
 
+      Tag = "GT"
+      self.GT = PCA_XMLParser.GetXMLTagValue(XMLCFG,Tag)
+      Msg = "GT = <%s> " % self.GT
+
+      PCA_GenLib.WriteLog(Msg,1)
       Tag = "SC_ADDRESS"
       self.sc_address = PCA_XMLParser.GetXMLTagValue(XMLCFG,Tag)
       Msg = "sc_address = <%s> " % self.sc_address
@@ -83,10 +88,11 @@ class Writer:
        
         GT = TT + Numbering_plan + NoA + Digits
         address_indicator = chr(0x12)
-        if map_type == "SRI-SM" or map_type == "MT-FSM":
-          SSN = chr(0x06)
-        else:
-          SSN = chr(0x08)
+        #if map_type == "SRI-SM" or map_type == "MT-FSM":
+        #  SSN = chr(0x06)
+        #else:
+        #  SSN = chr(0x08)
+        SSN = chr(0x06)
         called_address = address_indicator + SSN + GT
 
       elif map_type == "MT-FSM":
@@ -97,10 +103,22 @@ class Writer:
        
         GT = TT + Numbering_plan + NoA + Digits
         address_indicator = chr(0x12)
-        if map_type == "SRI-SM":
-          SSN = chr(0x06)
-        else:
-          SSN = chr(0x08)
+        #if map_type == "SRI-SM":
+        #  SSN = chr(0x06)
+        #else:
+        #  SSN = chr(0x08)
+        SSN = chr(0x08)
+        called_address = address_indicator + SSN + GT
+      elif map_type == "MO-FSM":
+        TT = chr(0x00)
+        Numbering_plan = chr(0x12) ## even number of digits ..
+        NoA = chr(0x04)
+        #Digits = PCA_GenLib.converStringToReverseBCD(self.GT)
+        Digits = PCA_GenLib.converStringToReverseBCD(self.sc_address)
+       
+        GT = TT + Numbering_plan + NoA + Digits
+        address_indicator = chr(0x12)
+        SSN = chr(0x08)
         called_address = address_indicator + SSN + GT
       else:
         # prepare data for MO-FSM ack
@@ -129,7 +147,16 @@ class Writer:
         SSN = chr(0x08)
         calling_address = address_indicator + SSN + GT
      
-        
+      elif map_type == "MO-FSM":
+        TT = chr(0x00)
+        Numbering_plan = chr(0x12) ## even number of digits ..
+        NoA = chr(0x04)
+        Digits = PCA_GenLib.converStringToReverseBCD(self.GT)
+       
+        GT = TT + Numbering_plan + NoA + Digits
+        address_indicator = chr(0x12)
+        SSN = chr(0x08)
+        calling_address = address_indicator + SSN + GT
       else:
         # prepare data for MO-FSM ack
         TT = parameter_list["SCCP called Translation Type"][1]

@@ -1,5 +1,3 @@
-Not done yet ..
-
 MAP Server Simulator
 ========================
 Native SS7 stack

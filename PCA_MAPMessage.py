@@ -19,6 +19,7 @@ import sys,string,time
 import PCA_GenLib,struct
 import PCA_XMLParser
 import PCA_MAPParameters
+import smspdu
 
 #########################################################################
 # Message Writer
@@ -164,7 +165,7 @@ class Writer:
       #if parameter_list["TCAP oid 1"][0] == "shortMsgMO_Relay_v3":
       if map_type == "MO-FSM-Ack":
         Msg = "construct MAP_MO_FSM Ack"
-        PCA_GenLib.WriteLog(Msg,2)
+        PCA_GenLib.WriteLog(Msg,1)
         MAP_Tag = chr(0xa2)
         udhi = chr(0x01)
 
@@ -214,11 +215,10 @@ class Writer:
         map_data = invoke_id + result_tretres
       elif map_type == "SRI-SM":
         Msg = "construct SRI-SM request"
-        PCA_GenLib.WriteLog(Msg,2)
+        PCA_GenLib.WriteLog(Msg,1)
         MAP_Tag = chr(0xa1)
        
-        noa = chr(0x91)
-        #digits = chr(0x88)+chr(0x96)+chr(0x62)+chr(0x05)+chr(0x40)+chr(0x00)
+        noa = chr(0x91)       
         digits = PCA_GenLib.converStringToReverseBCD(self.sc_address)
         tag = chr(0x82)
         tag_data = noa + digits 
@@ -228,8 +228,7 @@ class Writer:
         tag_data = chr(0x01)
         SM_RP_PRI = self.constructTLV(tag,tag_data)
         
-        noa = chr(0x91)
-       
+        noa = chr(0x91)       
         digits = PCA_GenLib.converStringToReverseBCD(parameter_list["recipient"])
         tag = chr(0x80)
         tag_data = noa + digits 
@@ -294,9 +293,79 @@ class Writer:
         invoke_id = self.constructTLV(tag,tag_data)
         map_data = invoke_id + result_tretres
 
+      elif map_type == "MO-FSM":
+        Msg = "construct MO-FSM request"
+        PCA_GenLib.WriteLog(Msg,1)
+        MAP_Tag = chr(0xa1)
+       
+        TP_RP = chr(0x01)
+        TP_MR = chr(0x29)
+        
+        
+        digits = PCA_GenLib.converStringToReverseBCD("0936001002")
+        #address_len = struct.pack("!B",len(digits)*2)
+        address_len = chr(0x0a)
+        toa = chr(0x81)
+        TP_DA = address_len + toa + digits
+        TP_PID = chr(0x00)
+        TP_DCS = chr(0x00)
+         
+
+        TP_user_data = "Hello MO-FSM World !" 
+        (TP_user_data_len_int,TP_user_data_gsm) = smspdu.pdu.pack7bit(TP_user_data)
+        TP_user_data_length = struct.pack("!B",TP_user_data_len_int)
+
+        tag = chr(0x04)
+        tag_data = TP_RP + TP_MR + TP_DA + TP_PID + TP_DCS +  TP_user_data_length + TP_user_data_gsm
+        SM_RP_PRI = self.constructTLV(tag,tag_data)
+
+        #Msg = "DEBUG SM_RP_PRI = *\n%s\n*" % PCA_GenLib.HexDump(SM_RP_PRI)
+        #PCA_GenLib.WriteLog(Msg,1)
+
+        noa = chr(0x91)
+        digits = PCA_GenLib.converStringToReverseBCD(self.sc_address)
+        tag = chr(0x84)
+        tag_data = noa + digits 
+        sc_address = self.constructTLV(tag,tag_data)
+      
+        noa = chr(0x91)       
+        digits = PCA_GenLib.converStringToReverseBCD("886936001001")
+        tag = chr(0x82)
+        tag_data = noa + digits 
+        msisdn = self.constructTLV(tag,tag_data)
+        
+        tag = chr(0x30)
+        tag_data = sc_address + msisdn + SM_RP_PRI
+        address_info = self.constructTLV(tag,tag_data)        
+
+       
+        tag = chr(0x02)
+        tag_data = chr(0x2e) #MO-FSM
+        opCode = self.constructTLV(tag,tag_data)
+
+          
+        tag = chr(0x02)
+        tag_data = chr(0x02) 
+        invoke_id = self.constructTLV(tag,tag_data)
+
+  
+       
+        digits = PCA_GenLib.converStringToReverseBCD("466901234567890f")
+        tag = chr(0x04)       
+        tag_data = digits 
+        imsi = self.constructTLV(tag,tag_data)
+
+        #map_data = invoke_id + opCode + address_info + imsi
+        map_data = invoke_id + opCode + address_info 
+   
+   
+        #Msg = "DEBUG map_data = *\n%s\n*" % PCA_GenLib.HexDump(map_data)
+        #PCA_GenLib.WriteLog(Msg,1)
+
+
       elif map_type == "MT-FSM":
         Msg = "construct MT-FSM request"
-        PCA_GenLib.WriteLog(Msg,2)
+        PCA_GenLib.WriteLog(Msg,1)
         MAP_Tag = chr(0xa1)
        
        
@@ -308,7 +377,6 @@ class Writer:
         TP_OA = address_len + toa + digits
         TP_PID = chr(0x00)
         TP_DCS = chr(0x00)
-         
          
 
         CurrentSeconds = time.time()	
@@ -339,8 +407,7 @@ class Writer:
          #    PCA_GenLib.WriteLog(Msg,3)
             
 
-        TP_user_data = parameter_list["sms_text"]
-        
+        TP_user_data = parameter_list["sms_text"]        
         TP_user_data_length = struct.pack("!B",len(TP_user_data))
 
         tag = chr(0x04)
@@ -367,7 +434,7 @@ class Writer:
 
        
         tag = chr(0x02)
-        tag_data = chr(0x2c)
+        tag_data = chr(0x2c)  #MT-FSM
         opCode = self.constructTLV(tag,tag_data)
 
           
@@ -375,14 +442,17 @@ class Writer:
         tag_data = chr(0x02)
         invoke_id = self.constructTLV(tag,tag_data)
         map_data = invoke_id + opCode + address_info
-
+    
+      ########################################################
       # MT-FSM ack 
-      else:
+      ########################################################
+      elif map_type == "MT-FSM-Ack":
+        Msg = "construct MT-FSM-Ack"
+        PCA_GenLib.WriteLog(Msg,1)
         MAP_Tag = chr(0xa2)
         #tag = chr(0x02)
         #tag_data = chr(0x24) 
         #result_tretres = self.constructTLV(tag,tag_data)
-
 
        
         tag = chr(0x02)
@@ -403,13 +473,16 @@ class Writer:
         result_tretres = self.constructTLV(tag,tag_data)
 
 
-
-
         tag = chr(0x02)
         tag_data =  parameter_list["MAP invoke_id"][1]
         invoke_id = self.constructTLV(tag,tag_data)
        
-        map_data = invoke_id + result_tretres
+        #map_data = invoke_id + result_tretres
+        map_data = invoke_id
+      else:
+         Msg = "undef ignore "
+         PCA_GenLib.WriteLog(Msg,1)
+         map_data = chr(0x00)
 
       message_length = len(map_data) 
       message_length_hex = struct.pack("!b",message_length)
@@ -417,8 +490,8 @@ class Writer:
       map_message = MAP_Tag + message_length_hex + map_data
       self.Message = map_message
 
-      Msg = "DEBUG MAP = *\n%s\n*" % PCA_GenLib.HexDump(self.Message)
-      PCA_GenLib.WriteLog(Msg,3)
+      #Msg = "DEBUG MAP = *\n%s\n*" % PCA_GenLib.HexDump(self.Message)
+      #PCA_GenLib.WriteLog(Msg,1)
       return self.Message
     except:
      Msg = "getMessage Error :<%s>,<%s>" % (sys.exc_type,sys.exc_value)

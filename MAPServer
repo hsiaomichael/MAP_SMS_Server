@@ -11,8 +11,13 @@
 #
 # Author    : Michael Hsiao 
 #
-# Date      : 2016/11/2-
+# Date      : 2016/11/20 @Taipei
 # Desc      : MAP SMS Server
+
+# Update by : Michael Hsiao 
+# Date      : 2017/02/19 @Manila
+# Desc      : Support SRI-SM and MT-FSM
+
 
 import sys
 import PCA_GenLib
@@ -27,7 +32,7 @@ def Server(XMLCFG):
 	try:
 		PCA_GenLib.DBXMLCFGInit(XMLCFG)		
 		try:	
-			Msg = "Server StartUp ... 2016/11/20 Version 1.0"
+			Msg = "Server StartUp ... 2017/03/19 Version 1.1"
 			PCA_GenLib.WriteLog(Msg,0)	
 			TimeOut = 2.5
 			MAPServer = PCA_M3UAServerSocket.Acceptor(XMLCFG)

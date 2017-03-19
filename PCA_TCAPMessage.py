@@ -206,7 +206,8 @@ class Writer:
       # <MAP component_type_invoke:a1>=<0201020.......82009099041411000c918896820000200000020661f138269b01>
       # <MAP invoke_id:02>=<02>
       # <MAP opCode:02>=<mo-ForwardSM>
-      if map_type == "MO-FSM-Ack" or "SRI-SM-Ack" or "MT-FSM-Ack":
+      
+      if map_type == "MO-FSM-Ack" or map_type == "SRI-SM-Ack" or map_type == "MT-FSM-Ack":
        
         TCAP_Tag = chr(0x64)
         ###############################################
@@ -304,7 +305,7 @@ class Writer:
         dialog_portion_tag = chr(0x6b)     
         dialog_portion = self.constructTLV(dialog_portion_tag,tcap_external_tlv)
       
-      elif map_type == "MT-FSM":
+      elif map_type == "MT-FSM" or "MO-FSM":
         TCAP_Tag = chr(0x62)
         ###############################################
         # Transaction Portion 
@@ -316,8 +317,11 @@ class Writer:
         ###############################################
         # Dialog Portion 
         ###############################################
+        if map_type == "MT-FSM" :
+          Application_Context_name = chr(0x04)+chr(0x00)+chr(0x00)+chr(0x01)+chr(0x00)+chr(0x19)+chr(0x03)
+        else:
+         Application_Context_name = chr(0x04)+chr(0x00)+chr(0x00)+chr(0x01)+chr(0x00)+chr(0x15)+chr(0x03)
 
-        Application_Context_name = chr(0x04)+chr(0x00)+chr(0x00)+chr(0x01)+chr(0x00)+chr(0x19)+chr(0x03)
         Application_Context_name_Tag = chr(0x06)
         Application_Context = self.constructTLV(Application_Context_name_Tag,Application_Context_name)
         Application_Context_Tag = chr(0xa1)
@@ -345,12 +349,13 @@ class Writer:
         dialog_portion_tag = chr(0x6b)     
         dialog_portion = self.constructTLV(dialog_portion_tag,tcap_external_tlv)
       else:
-        Msg = "unknow map_type = %s" % map_type
+        Msg = "unknow map_type = %s ignore response" % map_type
         PCA_GenLib.WriteLog(Msg,0)
  
       ###############################################
       # Component Portion -- MAP
       ###############################################
+      
       tag = chr(0x6c)
       tag_data = self.MAPMessage.getMessage(map_type,parameter_list)
       component_portion = self.constructTLV(tag,tag_data)

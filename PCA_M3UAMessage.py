@@ -261,45 +261,4 @@ class Writer:
      raise	
 	
 	
-	  
-#######################################################	   
-# Main Program 
-#######################################################   
-if __name__ == '__main__':
-
-  def MainTest(XMLCFG):
-    try:
-      print 'Start Program ...'
-      try:
-        PCA_GenLib.DBXMLCFGInit(XMLCFG)	
-        Message = Writer(XMLCFG)
-        try:
-          #M3UA_ASUP_UP = Message.getASUP_UP()
-          data = Message.getASP_Active()
-          Msg = "message = *\n%s\n*" % PCA_GenLib.HexDump(data)
-          PCA_GenLib.WriteLog(Msg,1)
-        finally:
-          x=1
-      finally:
-        PCA_GenLib.CloseLog()
-      return 0
-    except:
-      print '\n\n uncaught ! < ',sys.exc_type,sys.exc_value,' >'
-      import traceback
-      traceback.print_exc()  
-      raise
-
-#################################################################
-  try:	
-  	print "Open cfg file"
-	XMLCFG =  open("M3UAMessage.cfg","r").read()
-	MainTest(XMLCFG)
-  except:
-  	print "Error or .cfg configuration file not found"
- 	print "Msg = : <%s>,<%s>" % (sys.exc_type,sys.exc_value)
- 	import traceback
-	traceback.print_exc()  	
-  	sys.exit()
 	
-	
-

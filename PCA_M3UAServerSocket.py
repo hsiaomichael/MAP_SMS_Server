@@ -28,7 +28,6 @@ import PCA_SCTPServerSocket
 import PCA_M3UAResponseParser
 import PCA_M3UAMessage
 
-
 def getDetailMessage(message,parameter_list,display_flags):
   try:
         Msg = "-----------------------------------------------------------------"
@@ -106,10 +105,12 @@ class Acceptor(PCA_SCTPServerSocket.Acceptor):
   def dispatcher(self,TimeOut):
     try:
       Msg = "dispatcher "
-      PCA_GenLib.WriteLog(Msg,9)	
+      PCA_GenLib.WriteLog(Msg,9)
+     
 
       while 1:			       
-        readables, writeables, exceptions = select.select(self.ReadSet,[], [],TimeOut)    				
+        readables, writeables, exceptions = select.select(self.ReadSet,[], [],TimeOut)  
+        				
         for self.SocketConnection in readables:    				 	
           ##################################
           #### for ready input sockets #####
@@ -132,7 +133,8 @@ class Acceptor(PCA_SCTPServerSocket.Acceptor):
                 self.ConnectionLoginState[id(self.SocketConnection)] = 'N'
                 Msg = "Set ConnectionLoginState <%s> to N " % id(self.SocketConnection)
                 PCA_GenLib.WriteLog(Msg,1)
-            		
+                
+                	
                 				
               ClientMessage = self.SocketConnection.recv(2048)            					
               if not ClientMessage:
@@ -194,19 +196,25 @@ class Acceptor(PCA_SCTPServerSocket.Acceptor):
        getDetailMessage(response_message,request_parameter_list,3)
       
        map_type = "SRI-SM-Ack"
-       if string.find(DebugStr,"SRI") != -1:
-         map_type = "SRI-SM-Ack"
-       else:
-         map_type = "MT-FSM-Ack"
-         
-       Message = self.M3UAMessage.getPayloadData(map_type,request_parameter_list,request_parameter_list)
-       self.parser.parse(Message)
-       response_message = self.handler.getHandlerResponse()
+       if string.find(DebugStr,"shortMsgMO") != -1:
+         Message = None # MO-FSM ACK not response anything
+         Msg = "MO-FSM ACK not response anything"
+         PCA_GenLib.WriteLog(Msg,1)
 
-       ServerID = self.handler.getTID()
-       DebugStr = self.handler.getDebugStr()
-       Msg = "send : %s*" % DebugStr
-       PCA_GenLib.WriteLog(Msg,1)
+       else:
+         if string.find(DebugStr,"SRI") != -1:
+           map_type = "SRI-SM-Ack"      
+         else:
+           map_type = "MT-FSM-Ack"
+         
+         Message = self.M3UAMessage.getPayloadData(map_type,request_parameter_list,request_parameter_list)
+         self.parser.parse(Message)
+         response_message = self.handler.getHandlerResponse()
+
+         ServerID = self.handler.getTID()
+         DebugStr = self.handler.getDebugStr()
+         Msg = "send : %s*" % DebugStr
+         PCA_GenLib.WriteLog(Msg,1)
      else:
        #ASP Up (ASPUP) or "ASP Active (ASPAC) or "Heartbeat (BEAT)" or Heartbeat Acknowledgement (BEAT ACK)"
        Message = self.handler.getSCTPResponse()
@@ -215,13 +223,19 @@ class Acceptor(PCA_SCTPServerSocket.Acceptor):
      if Message != None:
        Msg = "send = *\n%s\n*" % PCA_GenLib.HexDump(Message)
        PCA_GenLib.WriteLog(Msg,2)
-       #if string.find(DebugStr,"BEAT") == -1:
-       #  Msg = "send : %s*" % DebugStr
-       #  PCA_GenLib.WriteLog(Msg,1)
        
 
-
        self.sendDataToSocket(conn,Message)
+
+
+       if string.find(DebugStr,"ASPAC") != -1:
+         Msg = "send : %s*" % DebugStr
+         PCA_GenLib.WriteLog(Msg,1)
+         time.sleep(3)
+         Msg = "send MO-FSM "
+         PCA_GenLib.WriteLog(Msg,1)
+         self.sendMO(conn)
+            	
        
 #Message = self.M3UAMessage.getPayloadData("SRI-Ack",mo_fsm_message_request,mo_fsm_message_request)
 
@@ -230,6 +244,41 @@ class Acceptor(PCA_SCTPServerSocket.Acceptor):
      PCA_GenLib.WriteLog(Msg,9)   
     except:
      Msg = "handle_event Error :<%s>,<%s>" % (sys.exc_type,sys.exc_value)
+     PCA_GenLib.WriteLog(Msg,0)
+     raise	  
+
+  ########################################################################
+  # 
+  #
+  #########################################################################
+  def sendMO(self,conn):
+    try:	
+     Msg = "sendMO"
+     PCA_GenLib.WriteLog(Msg,9)
+	
+     request_parameter_list = {}
+     #getDetailMessage(response_message,request_parameter_list,3)
+         
+     Message = self.M3UAMessage.getPayloadData("MO-FSM",request_parameter_list,request_parameter_list)
+     self.parser.parse(Message)
+     response_message = self.handler.getHandlerResponse()
+
+     ServerID = self.handler.getTID()
+     DebugStr = self.handler.getDebugStr()
+     Msg = "send : %s*" % DebugStr
+     PCA_GenLib.WriteLog(Msg,1)
+
+
+     if Message != None:
+       Msg = "send = *\n%s\n*" % PCA_GenLib.HexDump(Message)
+       PCA_GenLib.WriteLog(Msg,2)
+
+       self.sendDataToSocket(conn,Message)
+      
+     Msg = "sendMO OK"
+     PCA_GenLib.WriteLog(Msg,9)   
+    except:
+     Msg = "sendMO Error :<%s>,<%s>" % (sys.exc_type,sys.exc_value)
      PCA_GenLib.WriteLog(Msg,0)
      raise	  
 
