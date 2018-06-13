@@ -2,12 +2,12 @@
 
 ########################################################################################
 #
-# Filename:   MAP_Server 
+# Filename:   MAPServer 
 #  
 # Description
 # ===========
 # 
-#
+#  
 #
 # Author    : Michael Hsiao 
 #
@@ -16,7 +16,7 @@
 
 # Update by : Michael Hsiao 
 # Date      : 2017/02/19 @Manila
-# Desc      : Support SRI-SM and MT-FSM
+# Desc      : Support MO-FSM ,SRI-SM and MT-FSM (request/response)
 
 
 import sys
@@ -60,20 +60,17 @@ if __name__ == '__main__':
   
   try:	
   	print "Open cfg file"
-        try:
-		
+        try:		
 		filename =  sys.argv[1]
         	XMLCFG =  open(filename,"r").read()
 	except IOError:
-		XMLCFG =  open("MAPServer.cfg","r").read()
-		
+		XMLCFG =  open("MAPServer.cfg","r").read()		
 
 	Server(XMLCFG)
   except:
   	print "MAPServer.cfg configuration file not found"
  	print "Msg = : <%s>,<%s>" % (sys.exc_type,sys.exc_value)
   	sys.exit()
-
    	
   print "Bye !"
 	

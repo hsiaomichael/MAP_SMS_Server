@@ -21,7 +21,7 @@ Test Procedure
    * vi MAPServer.cfg update sctp server ip port , M3UA Point Code and MAP SC_Address
    * ./run.sh
   
-   * This M3UA STP simulator send MO-Forward-SMS request to SMSC
+   * use cmd.sh send MO-FSM or MO-long message to SMSC
    * once Simulator receiver SRI-SM , will send SRI-SM-act back to SMSC (with NNN and IMSI)
    * once Simulator receiver MT-FSM , will send MT-FSM-act back to SMSC 
  

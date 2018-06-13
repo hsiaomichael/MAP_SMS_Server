@@ -21,6 +21,8 @@ class ContentHandler:
     DebugStr = "NA"
     TID = "NA"
     Message = None
+    orig_tid = ''
+    dest_tid = ''
     def __init__(self):
         self._locator = None
 
@@ -64,7 +66,16 @@ class ContentHandler:
 
     def skippedEntity(self, name):
         "Receive notification of a skipped entity."
-
+			
+    def constructTLV(self,tag,tag_data):
+      try:
+        tag_length = struct.pack("!b",len(tag_data))
+        tlv = tag + tag_length + tag_data
+        return tlv	
+      except:
+        Msg = "constructTLV Error :<%s>,<%s>" % (sys.exc_type,sys.exc_value)
+        PCA_GenLib.WriteLog(Msg,0)
+        raise
     def getDebugStr(self):
         return self.DebugStr
         
@@ -73,6 +84,8 @@ class ContentHandler:
     def getHandlerResponse(self):
         return self.Message
 
+    def getTCAP_ID(self):	
+      return (self.orig_tid,self.dest_tid)
 #########################################################################
 # 
 #

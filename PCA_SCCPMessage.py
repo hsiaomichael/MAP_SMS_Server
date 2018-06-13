@@ -3,13 +3,13 @@
 ########################################################################################
 #
 # Filename:    PCA_SCCPMessage.py
-#  
+#
 # Description
 # ===========
 # M3UA Message Handler
 #
 #
-# Author        : Michael Hsiao 
+# Author        : Michael Hsiao
 #
 # Create Date   : 2016/10/01
 # Desc          : Initial
@@ -25,20 +25,20 @@ import PCA_TCAPMessage
 #
 #########################################################################
 class Writer:
-	
-	
+
+
   #########################################################################
   # Init Header
   #
   ########################################################################
-    
-  message_length_hex = chr(0x00) + chr(0x00) 
-      
+
+  message_length_hex = chr(0x00) + chr(0x00)
+
   def __init__(self,XMLCFG):
     try:
       Msg = "Writer Init "
       PCA_GenLib.WriteLog(Msg,9)
-	
+
       self.TCAPMessage = PCA_TCAPMessage.Writer(XMLCFG)
 
       Tag = "MESSAGE_TYPE"
@@ -53,26 +53,26 @@ class Writer:
       self.sc_address = PCA_XMLParser.GetXMLTagValue(XMLCFG,Tag)
       Msg = "sc_address = <%s> " % self.sc_address
       PCA_GenLib.WriteLog(Msg,1)
-	
+
       Msg = "Writer OK"
       PCA_GenLib.WriteLog(Msg,9)
     except:
       Msg = "Writer Init Error : <%s>,<%s> " % (sys.exc_type,sys.exc_value)
-      PCA_GenLib.WriteLog(Msg,0)	
+      PCA_GenLib.WriteLog(Msg,0)
       raise
-	
+
 
   ########################################################################
   # Return Message
   #
   #########################################################################
   def getMessage(self,map_type,parameter_list,parameter_list_request):
-    try:	
-      
+    try:
+
       message_type = struct.pack("!b",self.message_type)
       #Protocol_Class = chr(0x00) # parameter_list["SCCP Protocol Class"][1]
-      Protocol_Class = chr(0x80) 
-      
+      Protocol_Class = chr(0x80)
+
       #hoop_counter = parameter_list["SCCP Hop Counter"][1]
       hoop_counter = chr(0x0f)
       P_2_first_parameter = chr(0x04)
@@ -85,7 +85,7 @@ class Writer:
         Numbering_plan = chr(0x12) ## even number of digits ..
         NoA = chr(0x04)
         Digits = PCA_GenLib.converStringToReverseBCD(parameter_list['recipient'])
-       
+
         GT = TT + Numbering_plan + NoA + Digits
         address_indicator = chr(0x12)
         #if map_type == "SRI-SM" or map_type == "MT-FSM":
@@ -100,7 +100,7 @@ class Writer:
         Numbering_plan = chr(0x12) ## even number of digits ..
         NoA = chr(0x04)
         Digits = PCA_GenLib.converStringToReverseBCD(parameter_list['NNN'])
-       
+
         GT = TT + Numbering_plan + NoA + Digits
         address_indicator = chr(0x12)
         #if map_type == "SRI-SM":
@@ -109,13 +109,13 @@ class Writer:
         #  SSN = chr(0x08)
         SSN = chr(0x08)
         called_address = address_indicator + SSN + GT
-      elif map_type == "MO-FSM":
+      elif map_type == "MO-FSM" or map_type == "alertSC" or map_type == "MO-FSM-Begin" or map_type == "MO-FSM-segment":
         TT = chr(0x00)
         Numbering_plan = chr(0x12) ## even number of digits ..
         NoA = chr(0x04)
         #Digits = PCA_GenLib.converStringToReverseBCD(self.GT)
         Digits = PCA_GenLib.converStringToReverseBCD(self.sc_address)
-       
+
         GT = TT + Numbering_plan + NoA + Digits
         address_indicator = chr(0x12)
         SSN = chr(0x08)
@@ -129,30 +129,31 @@ class Writer:
         len_of_called_address_digits = len(Digits)
         GT = TT + Numbering_plan + NoA + Digits
         called_address = parameter_list["SCCP calling Address Indicator"][1] + parameter_list["SCCP calling SSN"][1] + GT
-     
+
       len_of_called_address_digits = len(Digits)
       P_2_second_parameter = struct.pack("!b",4 + 3 + len_of_called_address_digits + 2 )
 
       ################################################
       # CgPA
       ################################################
+      #if map_type == "SRI-SM" or map_type == "MT-FSM" or map_type == "TCAP-Begin":
       if map_type == "SRI-SM" or map_type == "MT-FSM":
         TT = chr(0x00)
         Numbering_plan = chr(0x12) ## even number of digits ..
         NoA = chr(0x04)
         Digits = PCA_GenLib.converStringToReverseBCD(self.sc_address)
-       
+
         GT = TT + Numbering_plan + NoA + Digits
         address_indicator = chr(0x12)
         SSN = chr(0x08)
         calling_address = address_indicator + SSN + GT
-     
-      elif map_type == "MO-FSM":
+
+      elif map_type == "MO-FSM" or map_type == "alertSC" or map_type == "MO-FSM-Begin"  or map_type == "MO-FSM-segment":
         TT = chr(0x00)
         Numbering_plan = chr(0x12) ## even number of digits ..
         NoA = chr(0x04)
         Digits = PCA_GenLib.converStringToReverseBCD(self.GT)
-       
+
         GT = TT + Numbering_plan + NoA + Digits
         address_indicator = chr(0x12)
         SSN = chr(0x08)
@@ -172,7 +173,7 @@ class Writer:
 
       len_of_calling_address_digits = len(Digits)
 
-      P_2_third_parameter = struct.pack("!b",4 + 3 + len_of_called_address_digits + 2 + 5 +  len_of_calling_address_digits )       
+      P_2_third_parameter = struct.pack("!b",4 + 3 + len_of_called_address_digits + 2 + 5 +  len_of_calling_address_digits )
 
       option_parameter = chr(0x00)
 
@@ -180,9 +181,17 @@ class Writer:
       called_address_hex_length = struct.pack("!B",len(called_address))
       calling_address_hex_length = struct.pack("!B",len(calling_address))
       tcap_message_hex_length = struct.pack("!B",len(tcap_message))
-      
+
+      #Msg = "tcap_message_length = *\n<%s>\n*" % (len(tcap_message))
+      #PCA_GenLib.WriteLog(Msg,0)
+      #Msg = "tcap_message_length_nex = *\n<%s>\n*" % PCA_GenLib.HexDump(tcap_message_hex_length)
+      #PCA_GenLib.WriteLog(Msg,0)
+
+      #xudt
       sccp_data = message_type +  Protocol_Class + hoop_counter + P_2_first_parameter + P_2_second_parameter + P_2_third_parameter + option_parameter + called_address_hex_length + called_address + calling_address_hex_length + calling_address + tcap_message_hex_length + tcap_message
-      
+      #udt no hoop counter
+      #sccp_data = message_type +  Protocol_Class + P_2_first_parameter + P_2_second_parameter + P_2_third_parameter + option_parameter + called_address_hex_length + called_address + calling_address_hex_length + calling_address + tcap_message_hex_length + tcap_message
+
       self.Message = sccp_data
 
       #Msg = "DEBUG SCCP = *\n%s\n*" % PCA_GenLib.HexDump(self.Message)
@@ -191,7 +200,6 @@ class Writer:
     except:
      Msg = "getMessage Error :<%s>,<%s>" % (sys.exc_type,sys.exc_value)
      PCA_GenLib.WriteLog(Msg,0)
-     raise	
-	
-	
-	
+     raise
+
+

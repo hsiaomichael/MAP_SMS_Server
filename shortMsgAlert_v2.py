@@ -13,7 +13,7 @@
 
 ########################################################################################
 
-import sys,string,struct,time
+import sys,string,struct
 import PCA_GenLib
 import PCA_Parser
 import PCA_XMLParser
@@ -21,76 +21,72 @@ import PCA_MAPParameters
 import PCA_DLL
 import smspdu  
 
-###    Message Handler
+###    Message Handler   	
 ##############################################################################
-class Handler(PCA_Parser.ContentHandler):
-
-  attrs = None
+class Handler(PCA_Parser.ContentHandler):	
+	
+  attrs = None	
   tcap_otid = ''
   tcap_dtid = ''
-  Message = ""
-  MAP_Message = {}
+  Message = {}
   dup_tag = 0
-  NNN = "000000000"
-  sri_imsi = "231011400000188f"
-  def __init__(self,XMLCFG):
-    PCA_Parser.ContentHandler.__init__(self)
-    self.Message = {}
-    Tag = "NNN"
-    self.NNN = PCA_XMLParser.GetXMLTagValue(XMLCFG,Tag)
-    
-    Tag = "SRI_RESP_IMSI"
-    self.sri_imsi = PCA_XMLParser.GetXMLTagValue(XMLCFG,Tag)
-    
+  def __init__(self):
+	PCA_Parser.ContentHandler.__init__(self)
+	self.Message = {}
+		
   def startDocument(self):
        self.ExtraSocketData = ''
        self.IsApplicationMessage = 0
        self.Operation = chr(0x00)
        self.TID='na'
-       self.Message = ''
-       self.MAP_Message = {}
+       self.Message = {}
        self.dup_tag = 0
-       self.opCode = ''
-
+	
   def startElement(self, name, attrs):
     try:
       Msg = "startElement init"
       PCA_GenLib.WriteLog(Msg,9)
-     
+
+      #Msg = "name=<%s>,attrs=<%s>" % (name,PCA_GenLib.HexDump(attrs))
+      #PCA_GenLib.WriteLog(Msg,0)
       name = "MAP %s" % name
       self.MessageName = name
-
       self.attrs = attrs
-      if name == "version":
+      if name == "version":			
         self.version =  attrs
-      if name == "otid":
-        self.tcap_otid =  attrs
-
+      if name == "otid":			
+        self.tcap_otid =  attrs		
+			
       Msg = "startElement OK"
-      PCA_GenLib.WriteLog(Msg,9)
+      PCA_GenLib.WriteLog(Msg,9)        	
     except:
       Msg = "startElement Error :<%s>,<%s>" % (sys.exc_type,sys.exc_value)
       PCA_GenLib.WriteLog(Msg,0)
       raise
 
-
+ 	
   def characters(self,content):
     try:
-    
+       		
       Msg = "characters Init "
       PCA_GenLib.WriteLog(Msg,9)
-      self.MAP_Message[self.MessageName] = (content,self.attrs)
-
+			
       Msg = "%-20s=<%-25s>,Hex=%s" % (self.MessageName ,content,PCA_GenLib.HexDump(self.attrs))
       PCA_GenLib.WriteLog(Msg,3)
-      Msg = "%s=%s" % (self.MessageName ,content)
-      PCA_GenLib.WriteLog(Msg,2)
-      if self.MessageName == "MAP opCode":
-        self.opCode = content
-     
+
+      try:
+         if self.Message[self.MessageName] != None :
+            x=1 
+         self.dup_tag = self.dup_tag + 1
+         name = "%s %s" % (self.MessageName,self.dup_tag)
+         self.Message[name] = (content,self.attrs)
+      except:
+         self.Message[self.MessageName] = (content,self.attrs)
+         
+			
       Msg = "characters OK"
       PCA_GenLib.WriteLog(Msg,9)
-
+        	
     except:
       Msg = "characters Error :<%s>,<%s>" % (sys.exc_type,sys.exc_value)
       PCA_GenLib.WriteLog(Msg,0)
@@ -101,7 +97,7 @@ class Handler(PCA_Parser.ContentHandler):
     try:
     
       self.DebugStr = debugstr
-      
+        	
     except:
       Msg = "startElement Error :<%s>,<%s>" % (sys.exc_type,sys.exc_value)
       PCA_GenLib.WriteLog(Msg,0)
@@ -110,47 +106,10 @@ class Handler(PCA_Parser.ContentHandler):
 
   def getHandlerResponse(self):	
     try:
-        Msg = "getHandlerResponse Init "
-        PCA_GenLib.WriteLog(Msg,9)
+	Msg = "getHandlerResponse Init "
+	PCA_GenLib.WriteLog(Msg,9)
 
         MAP_Tag = chr(0xa2)
-       
-        noa = chr(0x91)
-        
-        
-        nnn_bcd = PCA_GenLib.converStringToReverseBCD(self.NNN)
-        tag = chr(0x81)
-        tag_data = noa + nnn_bcd
-        locationinfo_with_LMSI = self.constructTLV(tag,tag_data)
-
-        tag = chr(0xa0)
-        tag_data = locationinfo_with_LMSI
-        location_data = self.constructTLV(tag,tag_data)
-
-        digits = PCA_GenLib.converStringToReverseBCD(self.sri_imsi)
-        
-     
-        tag = chr(0x04)
-        tag_data = digits 
-        IMSI_data = self.constructTLV(tag,tag_data)
-
-        tag = chr(0x30)
-        tag_data = IMSI_data + location_data 
-        recipient_info = self.constructTLV(tag,tag_data)      
-      
-        if self.opCode != "reportSM-DeliveryStatus":
-          tag = chr(0x02)
-          tag_data = chr(0x2d)
-          opCode = self.constructTLV(tag,tag_data)
-        else:
-          tag = chr(0x02)
-          tag_data = chr(0x2f)
-          opCode = self.constructTLV(tag,tag_data)
-        
-        tag = chr(0x30)
-        tag_data = opCode + recipient_info
-        result_tretres = self.constructTLV(tag,tag_data)
-         
         tag = chr(0x02)
         try:
           #tag_data = parameter_list["MAP invoke value"][1]
@@ -160,69 +119,27 @@ class Handler(PCA_Parser.ContentHandler):
         
         invoke_id = self.constructTLV(tag,tag_data)
 
-        #reportSM-DeliveryStatus
-
-        # If send SRI-Error 
-    ##Unknown subscriber;
-#- Call Barred;
-#- Teleservice Not Provisioned;
-#- Absent Subscriber_SM;
-#- Facility Not Supported;
-#- System failure;
-#- Unexpected Data Value;
-#- Data missing.
-
-
-        tag = chr(0x02)
-        #tag_data = chr(0x01) # 1 UNKNOWN_SUBSCRIBER - SMSC delete message
-        #tag_data = chr(0x05) # 5 UNIDENTIFIED_SUBSCRIBER
-        #tag_data = chr(0x06) # 6 ABSENT_SUBSCRIBER_SM
-        #tag_data = chr(0x09) # 9 ILLEGAL_SUBSCRIBER - SMSC delete message
-        #tag_data = chr(0x0b) # 11 TS_NOT_PROVISIONED  - SMSC delete message
-        #tag_data = chr(0x0c) # 12 ILLEGAL_EQUIPMENT - SMSC delete message
-        #tag_data = chr(0x0d) # 13 CALL_BARRED  - SMSC delete message
-        #tag_data = chr(0x15) # 21 FACILITY_NOT_SUPPORTED
-        #tag_data = chr(0x1b) # 27 ABSENT_SUBSCRIBER
-        tag_data = chr(0x1f) # 31 SUBSCRIBER_BUSY_FOR_MT 
-        #tag_data = chr(0x20) # 32 DELIVERY_FAILURE
-        #tag_data = chr(0x22) # 34 SYSTEM_FAILURE
-        #tag_data = chr(0x23) # 35 DATA_MISSING
-        #tag_data = chr(0x24) # 36 UNEXPECTED_DATA_VALUE
-   
-
-        error_code = self.constructTLV(tag,tag_data)
-
-        
-
-        if self.opCode != "reportSM-DeliveryStatus":
-          return_error_test = 0
-          if return_error_test == 0:
-            map_data = invoke_id + result_tretres
-          else:
-            MAP_Tag = chr(0xa3)
-            map_data = invoke_id + error_code
-        else:
-          map_data = invoke_id
+        map_data = invoke_id
 
         message_length = len(map_data) 
         message_length_hex = struct.pack("!b",message_length)
 
         map_message = MAP_Tag + message_length_hex + map_data
         self.Message = map_message
-        
-        #Msg = "Sleep 20 seconds"
-        #PCA_GenLib.WriteLog(Msg,1)        
-        #time.sleep(20)
-        
-        Msg = "getHandlerResponse OK"
-        PCA_GenLib.WriteLog(Msg,9)
-
-        return self.Message
-
+			
+	Msg = "getHandlerResponse OK"
+	PCA_GenLib.WriteLog(Msg,9)
+			
+	return self.Message
+			
     except:
       Msg = "getHandlerResponse  error : <%s>,<%s> " % (sys.exc_type,sys.exc_value)
       PCA_GenLib.WriteLog(Msg,0)
-      raise
+      raise								
+
+		
+							
+						
 
 #########################################################################
 # 
@@ -267,7 +184,7 @@ class Parser(PCA_Parser.Parser):
           break
         
         self.tag_index = self.tag_index + 1
-        name = "Tag"
+	name = "Tag"
         attrs = source[0]
         tag_desc = "na"
         try:
@@ -292,7 +209,7 @@ class Parser(PCA_Parser.Parser):
         
         #self.set_handler(name,chr(0x00),content)
         self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,name,content)
-
+	
         tag_class = ord(attrs) & 0xc0
         tag_class = tag_class >> 6
         Tag_Type = 'Primitive'
@@ -302,7 +219,7 @@ class Parser(PCA_Parser.Parser):
           Tag_Type = 'Constructor'
         else:
           
-          content = ord(attrs)
+	  content = ord(attrs)
           Tag_Type = 'Primitive'
 
         name = "tag type"
@@ -324,13 +241,13 @@ class Parser(PCA_Parser.Parser):
          
         name = "length"
         name = "%s length" % tag
-        attrs = source[0]
-        content = ord(attrs)  
+	attrs = source[0]
+	content = ord(attrs)  
         tag_length_form = "short"
         if content & 0x80:
            tag_length_form = "long"
            long_tag_length = chr(content & 0x7F) + source[1]
-           content = struct.unpack("!H",long_tag_length)[0]
+	   content = struct.unpack("!H",long_tag_length)[0]
            tag_length = content
           
         else:
@@ -338,7 +255,7 @@ class Parser(PCA_Parser.Parser):
            content = struct.unpack("!B",attrs)[0]
            tag_length = content
            
-        #self.set_handler(name,attrs,content)
+	#self.set_handler(name,attrs,content)
         name = "%s %s" % (tag_length_form,name)
         self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,name,content)
         
@@ -351,7 +268,7 @@ class Parser(PCA_Parser.Parser):
         name = "%s value" % tag
        
 
-        attrs = source[0:tag_length]
+	attrs = source[0:tag_length]
 
         # OpCode
         if self.invoke_id == 2 and tag_desc == "opCode":
@@ -404,7 +321,7 @@ class Parser(PCA_Parser.Parser):
       #PCA_GenLib.WriteLog(Msg,0)
 
 
-        
+	
   def parse(self, source,Is_TCAP_begin,app_context):
     try:
       Msg = "parser init"
@@ -417,43 +334,43 @@ class Parser(PCA_Parser.Parser):
 
       Msg = "MAP SRI-SM data =<\n%s\n>" % PCA_GenLib.HexDump(source)
       PCA_GenLib.WriteLog(Msg,3)
-
+			
       if (source != None)  : 
         self._cont_handler.startDocument()
-        self.StartParsing = 1
+	self.StartParsing = 1
         
       
         self.DebugStr = ""  
         name = "MAP Tag"
-        attrs = source[0]
+	attrs = source[0]
         Tag_Type = 'Primitive'
         if (ord(attrs) & 0x40):
-            name = "%s-Constructor" % name
-            attrs = source[0:2]
-            content = PCA_GenLib.getHexString(attrs)
+          name = "%s-Constructor" % name
+          attrs = source[0:2]
+          content = PCA_GenLib.getHexString(attrs)
         else:
-            name = "%s-Primitive" % name
-            content = ord(attrs)
-            self.set_handler(name,attrs,content)
+          name = "%s-Primitive" % name
+	  content = ord(attrs)
+	self.set_handler(name,attrs,content)
         
         if Tag_Type == 'Primitive':
-            source = source[1:]
+          source = source[1:]
         else:
-            source = source[2:]
+          source = source[2:]
 
         self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,name,content)
         name = "length"
-        attrs = source[0]
-        content = ord(attrs)
+	attrs = source[0]
+	content = ord(attrs)
         tag_length = content
-        self.set_handler(name,attrs,content)
+	self.set_handler(name,attrs,content)
         self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,name,content)
 
         source = source[1:]
         name = "value"
-        attrs = source[0:tag_length]
-        content = PCA_GenLib.getHexString(attrs)
-        self.set_handler(name,attrs,content)
+	attrs = source[0:tag_length]
+	content = PCA_GenLib.getHexString(attrs)
+	self.set_handler(name,attrs,content)
         #self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,name,content)
         
         
@@ -461,25 +378,25 @@ class Parser(PCA_Parser.Parser):
         source = attrs
         name = "invoke"
         tag_name = name
-        attrs = source[0]
+	attrs = source[0]
         content = ord(attrs)
-        self.set_handler(name,attrs,content)
+	self.set_handler(name,attrs,content)
 
         source = source[1:]
         name = "length"
-        attrs = source[0]
-        content = ord(attrs)
+	attrs = source[0]
+	content = ord(attrs)
         tag_length = content
-        self.set_handler(name,attrs,content)
+	self.set_handler(name,attrs,content)
         #self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,name,content)
 
         source = source[1:]
         #name = "invoke value"
         name = "invoke_id"
-        attrs = source[0]
-        content = ord(attrs)
+	attrs = source[0]
+	content = ord(attrs)
         tag_value = content
-        self.set_handler(name,attrs,content)
+	self.set_handler(name,attrs,content)
         self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,tag_name,tag_value)
 
 
@@ -493,22 +410,22 @@ class Parser(PCA_Parser.Parser):
           source = source[1:]
           name = "opCode"
           tag_name = name
-          attrs = source[0]
+	  attrs = source[0]
           content = ord(attrs)
           self.set_handler(name,attrs,content)
 
 
           source = source[1:]
           name = "opCode length"
-          attrs = source[0]
-          content = ord(attrs)
+	  attrs = source[0]
+	  content = ord(attrs)
           tag_length = content
           self.set_handler(name,attrs,content)
 
           source = source[1:]
           name = "opCode"
-          attrs = source[0]
-          content = ord(attrs)
+	  attrs = source[0]
+	  content = ord(attrs)
 
           op_code = 'na'
           try:
@@ -519,7 +436,6 @@ class Parser(PCA_Parser.Parser):
           except:
             Msg = "unknow opCode Value = %s" % content
             PCA_GenLib.WriteLog(Msg,0)
-          
           self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,tag_name,tag_value)
           self.set_handler(name,attrs,tag_value)
 
@@ -528,20 +444,20 @@ class Parser(PCA_Parser.Parser):
           source = source[1:]
           name = "msisdn tag"
           tag_name = name
-          attrs = source[0]
+	  attrs = source[0]
           content = ord(attrs)
           self.set_handler(name,attrs,content)
 
           source = source[1:]
           name = "msisdn tag length"
-          attrs = source[0]
-          content = ord(attrs)
+	  attrs = source[0]
+	  content = ord(attrs)
           tag_length = content
           #self.set_handler(name,attrs,content)
 
           source = source[1:]
           name = "msisdn tag value"
-          attrs = source[0:tag_length]	
+	  attrs = source[0:tag_length]	
           tag_value = PCA_GenLib.getHexString(attrs)
           self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,tag_name,tag_value)
           self.set_handler(name,attrs,tag_value)
@@ -550,58 +466,38 @@ class Parser(PCA_Parser.Parser):
           source = attrs
           name = "msisdn"
           tag_name = name
-          attrs = source[0]
+	  attrs = source[0]
           content = ord(attrs)
 
           source = source[1:]
           name = "length"
-          attrs = source[0]
-          content = ord(attrs)
+	  attrs = source[0]
+	  content = ord(attrs)
           tag_length = content
           
           source = source[1:]
           name = "msisdn value"        
-          attrs = source[1:tag_length]
+	  attrs = source[1:tag_length]
           tag_value = PCA_GenLib.getHexBCDString(attrs)
           self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,tag_name,tag_value)
           self.set_handler(name,attrs,tag_value)
           source = source[tag_length:]
-          if op_code != "reportSM-DeliveryStatus":
-            
-            name = "Priority Flag"
-            tag_name = name
-            attrs = source[0]
-            content = ord(attrs)
-
-            source = source[1:]
-            name = "length"
-            attrs = source[0]
-            content = ord(attrs)
-            tag_length = content
-
-            source = source[1:]
-            name = "Priority Flag value"        
-            attrs = source[0:tag_length]
-            tag_value = PCA_GenLib.getHexString(attrs)
-            self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,tag_name,tag_value)
-            self.set_handler(name,attrs,tag_value)
-            source = source[1:]
-        
+          
            
           name = "sc-address"
           tag_name = name
-          attrs = source[0]
+	  attrs = source[0]
           content = ord(attrs)
 
           source = source[1:]
           name = "sc-address length"
-          attrs = source[0]
-          content = ord(attrs)
+	  attrs = source[0]
+	  content = ord(attrs)
           tag_length = content
           
           source = source[1:]
           name = "sc-address value"        
-          attrs = source[1:tag_length]
+	  attrs = source[1:tag_length]
           tag_value = PCA_GenLib.getHexBCDString(attrs)
           Msg = "sc_address = <%s>" % tag_value
           PCA_GenLib.WriteLog(Msg,3)
@@ -609,13 +505,7 @@ class Parser(PCA_Parser.Parser):
           self.set_handler(name,attrs,tag_value)
 
           source = source[tag_length:]
-          if op_code == "reportSM-DeliveryStatus":
-            name = "sm-DeliveryOutcom"            
-            attrs = source[2]
-            content = ord(attrs)
-            self.set_handler(name,attrs,content)
-            Msg = "name = %s , value = %s" % (name,content)
-            PCA_GenLib.WriteLog(Msg,3)
+          
             
         else: 
           # SRI response
@@ -624,35 +514,35 @@ class Parser(PCA_Parser.Parser):
           source = source[1:]
           name = "resultretres"
           tag_name = name
-          attrs = source[0]
+	  attrs = source[0]
           content = ord(attrs)
 
           source = source[1:]
           name = "length"
-          attrs = source[0]
-          content = ord(attrs)
+	  attrs = source[0]
+	  content = ord(attrs)
           tag_length = content
 
           source = source[1:]
           name = "resultretres value"
-          attrs = source[0:tag_length]
+	  attrs = source[0:tag_length]
 
           source = attrs
           name = "opCode"
           tag_name = name
-          attrs = source[0]
+	  attrs = source[0]
           content = ord(attrs)
 
           source = source[1:]
           name = "length"
-          attrs = source[0]
-          content = ord(attrs)
+	  attrs = source[0]
+	  content = ord(attrs)
           tag_length = content
 
           source = source[1:]
           name = "opCode"
-          attrs = source[0]
-          content = ord(attrs)
+	  attrs = source[0]
+	  content = ord(attrs)
           try:
             tag_value = PCA_MAPParameters.op_code[content]
           except:
@@ -664,20 +554,20 @@ class Parser(PCA_Parser.Parser):
           source = source[1:]
           name = "sm-rp-UI"
           tag_name = name
-          attrs = source[0]
+	  attrs = source[0]
           content = ord(attrs)
           self.set_handler(name,attrs,content)
 
           source = source[1:]
           name = "length"
-          attrs = source[0]
-          content = ord(attrs)
+	  attrs = source[0]
+	  content = ord(attrs)
           tag_length = content
           #self.set_handler(name,attrs,content)
 
           source = source[1:]
           name = "sm-rp-UI value"
-          attrs = source[0:tag_length]	
+	  attrs = source[0:tag_length]	
           tag_value = PCA_GenLib.getHexString(attrs)
           self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,tag_name,tag_value)
           self.set_handler(name,attrs,tag_value)
@@ -685,19 +575,19 @@ class Parser(PCA_Parser.Parser):
         
           source = attrs
           name = "imsi"
-          tag_name = name 
-          attrs = source[0]
+          tag_name = name
+	  attrs = source[0]
           content = ord(attrs)
 
           source = source[1:]
           name = "length"
-          attrs = source[0]
-          content = ord(attrs)
+	  attrs = source[0]
+	  content = ord(attrs)
           tag_length = content
 
           source = source[1:]
           name = "imsi value"        
-          attrs = source[0:tag_length]
+	  attrs = source[0:tag_length]
           tag_value = PCA_GenLib.getHexIMSIString(attrs)[0:15]
           self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,tag_name,tag_value)
           self.set_handler(name,attrs,tag_value)
@@ -705,18 +595,18 @@ class Parser(PCA_Parser.Parser):
           source = source[tag_length:]
           name = "location-info-with-LMSI"
           tag_name = name
-          attrs = source[0]
+	  attrs = source[0]
           content = ord(attrs)
 
           source = source[1:]
           name = "length"
-          attrs = source[0]
-          content = ord(attrs)
+	  attrs = source[0]
+	  content = ord(attrs)
           tag_length = content
 
           source = source[1:]
           name = "location-info-with-LMSI value"        
-          attrs = source[0:tag_length]
+	  attrs = source[0:tag_length]
           tag_value = PCA_GenLib.getHexString(attrs)
           self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,tag_name,tag_value)
           self.set_handler(name,attrs,tag_value)
@@ -724,18 +614,18 @@ class Parser(PCA_Parser.Parser):
           source = attrs
           name = "NNN"
           tag_name = name
-          attrs = source[0]
+	  attrs = source[0]
           content = ord(attrs)
 
           source = source[1:]
           name = "length"
-          attrs = source[0]
-          content = ord(attrs)
+	  attrs = source[0]
+	  content = ord(attrs)
           tag_length = content
 
           source = source[1:]
           name = "NNN value"        
-          attrs = source[1:tag_length]        
+	  attrs = source[1:tag_length]        
           #tag_value = PCA_GenLib.getHexString(attrs)
           tag_value = PCA_GenLib.getHexBCDString(attrs)
           self.set_handler(name,tag_value,tag_value)
@@ -745,7 +635,7 @@ class Parser(PCA_Parser.Parser):
 
         #source = source[1:]
         #name = "location GT"        
-        #attrs = source      
+	#attrs = source      
         #content = PCA_GenLib.getHexBCDString(attrs)
         #self.set_handler(name,attrs,content)
 
@@ -753,16 +643,15 @@ class Parser(PCA_Parser.Parser):
 
       if self.StartParsing == 1:
         self._cont_handler.endDocument(orig_data,self.DebugStr)
-        
-      Msg = "parser OK"
-      PCA_GenLib.WriteLog(Msg,9)
-    
+        		
+	Msg = "parser OK"
+	PCA_GenLib.WriteLog(Msg,9)
     except:
       Msg = "parser  :<%s>,<%s>,name=<%s>" % (sys.exc_type,sys.exc_value,name)
       PCA_GenLib.WriteLog(Msg,2)
       Msg = "orig data =\n%s" % PCA_GenLib.HexDump(orig_data)
       PCA_GenLib.WriteLog(Msg,2)
       self.set_handler("opCode","sendRoutingInfoForSM","sendRoutingInfoForSM")
-      #raise
-        
-        
+      #raise		
+	  
+

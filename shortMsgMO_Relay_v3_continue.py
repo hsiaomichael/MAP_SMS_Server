@@ -13,7 +13,7 @@
 
 ########################################################################################
 
-import sys,string,struct,time
+import sys,string,struct
 import PCA_GenLib
 import PCA_Parser
 import PCA_XMLParser
@@ -24,13 +24,12 @@ import smspdu
 ###    Message Handler   	
 ##############################################################################
 class Handler(PCA_Parser.ContentHandler):        
-        
-  attrs = None        
+	
+  attrs = None	
   tcap_otid = ''
   tcap_dtid = ''
-  Message = ''
+  Message = {}
   dup_tag = 0
-  MAP_Message = {}
   def __init__(self,XMLCFG):
         PCA_Parser.ContentHandler.__init__(self)
         self.Message = {}
@@ -40,9 +39,8 @@ class Handler(PCA_Parser.ContentHandler):
        self.IsApplicationMessage = 0
        self.Operation = chr(0x00)
        self.TID='na'
-       self.Message = ''
+       self.Message = {}
        self.dup_tag = 0
-       self.MAP_Message = {}
         
   def startElement(self, name, attrs):
     try:
@@ -73,24 +71,22 @@ class Handler(PCA_Parser.ContentHandler):
       Msg = "characters Init "
       PCA_GenLib.WriteLog(Msg,9)
         
-      self.MAP_Message[self.MessageName] = (content,self.attrs)	
-
       Msg = "%-20s=<%-25s>,Hex=%s" % (self.MessageName ,content,PCA_GenLib.HexDump(self.attrs))
       PCA_GenLib.WriteLog(Msg,3)
-      Msg = "%s=%s" % (self.MessageName ,content)
-      PCA_GenLib.WriteLog(Msg,2)
-      #try:
-      #   if self.Message[self.MessageName] != None :
-      #      x=1 
-      #   self.dup_tag = self.dup_tag + 1
-      #   name = "%s %s" % (self.MessageName,self.dup_tag)
-      #   self.Message[name] = (content,self.attrs)
-      #except:
-      #   self.Message[self.MessageName] = (content,self.attrs)
+
+      try:
+         if self.Message[self.MessageName] != None :
+            x=1 
+         self.dup_tag = self.dup_tag + 1
+         name = "%s %s" % (self.MessageName,self.dup_tag)
+         self.Message[name] = (content,self.attrs)
+      except:
+         self.Message[self.MessageName] = (content,self.attrs)
+         
         
       Msg = "characters OK"
       PCA_GenLib.WriteLog(Msg,9)
-        
+        	
     except:
       Msg = "characters Error :<%s>,<%s>" % (sys.exc_type,sys.exc_value)
       PCA_GenLib.WriteLog(Msg,0)
@@ -101,7 +97,7 @@ class Handler(PCA_Parser.ContentHandler):
     try:
     
       self.DebugStr = debugstr
-        
+        	
     except:
       Msg = "startElement Error :<%s>,<%s>" % (sys.exc_type,sys.exc_value)
       PCA_GenLib.WriteLog(Msg,0)
@@ -112,66 +108,7 @@ class Handler(PCA_Parser.ContentHandler):
     try:
         Msg = "getHandlerResponse Init "
         PCA_GenLib.WriteLog(Msg,9)
-
-        tag = chr(0x02)
-        tag_data =  self.MAP_Message["MAP invoke_id"][1]
-        invoke_id = self.constructTLV(tag,tag_data)
-
-        tag = chr(0x02)
-        tag_data = self.MAP_Message["MAP opCode"][1]
-        opCode = self.constructTLV(tag,tag_data)
-
-        mt_fsm_return_error = 0
-        if mt_fsm_return_error == 0:
-          # Success
-          MAP_Tag = chr(0xa2)
-       
-          tag = chr(0x04)
-          tag_data = chr(0x00)+chr(0x00)
-          SM_RP_UI_data = self.constructTLV(tag,tag_data)
-
-          tag = chr(0x30)
-          tag_data = SM_RP_UI_data
-          SM_RP_UI = self.constructTLV(tag,tag_data)
-
-          tag = chr(0x30)
-          tag_data = opCode + SM_RP_UI
-          result_tretres = self.constructTLV(tag,tag_data)
-        else:
-
-          # Failure
-          MAP_Tag = chr(0xa3)
-       
-          tag = chr(0x02)
-          #tag_data = chr(0x1b) 
-          tag_data = chr(0x06) #T_ABSENT_DETACHED
-         
-          error_code = self.constructTLV(tag,tag_data)
-
-          tag = chr(0x30)
-          #tag_data = chr(0x02) + chr(0x01) + chr(0x00) # absent_sub_diag_SM : 0 - no paging response via the MSC
-          tag_data = chr(0x02) + chr(0x01) + chr(0x01) # absent_sub_diag_SM : 1 - IMSI Detatch
-          #tag_data = chr(0x02) + chr(0x01) + chr(0x03) # absent_sub_diag_SM : deregistered in the HLR for non GPRS
-          #tag_data = chr(0x02) + chr(0x01) + chr(0x07) #7 - deregistered in the HLR for GPRS
-          SM_RP_UI = self.constructTLV(tag,tag_data)
-
-
-          #tag = chr(0x30)
-          #tag_data = opCode + error_code + SM_RP_UI
-          #result_tretres = self.constructTLV(tag,tag_data)
-          result_tretres = error_code + SM_RP_UI
         
-           
-        #Msg = "Sleep 70 seconds"
-        #PCA_GenLib.WriteLog(Msg,1)        
-        #time.sleep(70)
-      
-        map_data = invoke_id + result_tretres
-        message_length = len(map_data) 
-        message_length_hex = struct.pack("!b",message_length)
-
-        map_message = MAP_Tag + message_length_hex + map_data
-        self.Message = map_message		
         Msg = "getHandlerResponse OK"
         PCA_GenLib.WriteLog(Msg,9)
         
@@ -181,7 +118,6 @@ class Handler(PCA_Parser.ContentHandler):
       Msg = "getHandlerResponse  error : <%s>,<%s> " % (sys.exc_type,sys.exc_value)
       PCA_GenLib.WriteLog(Msg,0)
       raise
-    
 
 #########################################################################
 # 
@@ -197,7 +133,7 @@ class Parser(PCA_Parser.Parser):
   app_context = 'undef'
 
   def set_handler(self,name,attrs,content):
-    self._cont_handler.startElement(name, attrs)        		
+    self._cont_handler.startElement(name, attrs)        
     self._cont_handler.characters(content)
     self._cont_handler.endElement(name)
 
@@ -205,52 +141,53 @@ class Parser(PCA_Parser.Parser):
   def parseGSM0340_request(self,data):
     try:
         Msg = "parseGSM0340_request Init "
-        PCA_GenLib.WriteLog(Msg,2)
+        PCA_GenLib.WriteLog(Msg,9)
         Msg = "GSM 0340 data =\n%s" % PCA_GenLib.HexDump(data)
-        PCA_GenLib.WriteLog(Msg,2)
+        PCA_GenLib.WriteLog(Msg,3)
       
-        mt_fsm_gsm_0340_pdu = data
-        tag = mt_fsm_gsm_0340_pdu[0]
-       
-        source = mt_fsm_gsm_0340_pdu[1:]
+        gsm_0340_pdu = data
+        tag = gsm_0340_pdu[0]
+        TP_MR = gsm_0340_pdu[1]
 
-        name = "OA length"
+        source = gsm_0340_pdu[2:]
+
+        name = "GSM0340 recipient length"
         attrs = source[0]
         content = ord(attrs)
         tag_length = content
-        tag_length = tag_length / 2       
+        tag_length = tag_length / 2
+       
         self.set_handler(name,attrs,tag_length)
 
         source = source[1:]
-        name = "GSM0340 originating address"
+        name = "GSM0340 recipient address"
         attrs = source[0:tag_length+1]
         toa = PCA_GenLib.getHexString(attrs[1])
-        tag_value = "%s:%s" % (toa,PCA_GenLib.getHexBCDString(attrs[1:]))
+        #tag_value = "%s:%s" % (toa,PCA_GenLib.getHexBCDString(attrs[1:]))
+        tag_value = "%s" % (PCA_GenLib.getHexBCDString(attrs[1:]))
         self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,name,tag_value)
         self.set_handler(name,attrs,tag_value)
         
         source = source[tag_length+1:]
         pid = source[0]
         dcs = source[1]
-        time_stamp = source[2:2+6]
-        
-        source = source[9:] 
+        validity_period = source[2]
+         
         name = "GSM0340 user data length"
-        attrs = source[0]
+        attrs = source[3]
         content = ord(attrs)
         user_data_length = content
-        self.set_handler(name,attrs,content)
+        #self.set_handler(name,attrs,content)
 
 
-        source = source[1:]
+        source = source[4:]
         tag_name = "GSM0340 sms text"
         attrs = source[0:user_data_length]
-        #tag_value = PCA_GenLib.getHexString(attrs)
+        Msg = "PCA DEBUG MO Text = %s " % attrs
+        PCA_GenLib.WriteLog(Msg,1)
         tag_value = smspdu.pdu.unpack7bit(attrs)
-        Msg = "PCA DEBUG sms Text = %s " % tag_value
-        PCA_GenLib.WriteLog(Msg,2)
         self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,tag_name,tag_value)
-        self.set_handler("sms text",attrs,content)
+        self.set_handler("sms text",attrs,tag_value)
 
       
         Msg = "parseGSM0340_request ok "
@@ -258,8 +195,6 @@ class Parser(PCA_Parser.Parser):
 
     except:
       Msg = "parseGSM0340_request error : <%s>,<%s>" % (sys.exc_type,sys.exc_value)
-      PCA_GenLib.WriteLog(Msg,0)
-      Msg = "parseGSM0340_request error source =\n%s" % PCA_GenLib.HexDump(source)
       PCA_GenLib.WriteLog(Msg,3)
       #raise
 
@@ -269,7 +204,7 @@ class Parser(PCA_Parser.Parser):
         Msg = "parseGSM0340_response Init "
         PCA_GenLib.WriteLog(Msg,9)
         Msg = "GSM 0340 data =\n%s" % PCA_GenLib.HexDump(data)
-        PCA_GenLib.WriteLog(Msg,1)
+        PCA_GenLib.WriteLog(Msg,3)
       
         
         name = "GSM0340 tp_udhi"
@@ -307,19 +242,46 @@ class Parser(PCA_Parser.Parser):
       PCA_GenLib.WriteLog(Msg,0)
       #raise
 
-  def parseGSM0340_MTresponse(self,data):
+  def parseGSM0340_SRI_SM_response(self,data):
     try:
-        Msg = "parseGSM0340_MTresponse Init "
+        Msg = "parseGSM0340_SRI_SM_response Init "
         PCA_GenLib.WriteLog(Msg,9)
         Msg = "GSM 0340 data =\n%s" % PCA_GenLib.HexDump(data)
-        PCA_GenLib.WriteLog(Msg,3)
+        PCA_GenLib.WriteLog(Msg,1)
       
-      
-        Msg = "parseGSM0340_MTresponse ok "
+        
+        name = "GSM0340 tp_udhi"
+        attrs = data[0]
+        content = ord(attrs)
+        self.set_handler(name,attrs,content)
+
+        name = "GSM0340 tp_mti"
+        attrs = data[1]
+        content = ord(attrs)
+        self.set_handler(name,attrs,content)
+        
+        name = "GSM0340 tp_date"
+        attrs = data[2:5]
+        content = PCA_GenLib.getHexString(attrs)
+        content = "%s%s%s%s%s%s" % (content[1],content[0],content[3],content[2],content[5],content[4])
+        self.set_handler(name,attrs,content)
+        
+        name = "GSM0340 tp_time"
+        attrs = data[5:8]
+        content = PCA_GenLib.getHexString(attrs)
+        content = "%s%s%s%s%s%s" % (content[1],content[0],content[3],content[2],content[5],content[4])
+        self.set_handler(name,attrs,content)
+
+        name = "GSM0340 tp_timezone"
+        attrs = data[8]
+        content = ord(attrs)
+        self.set_handler(name,attrs,content)
+
+        Msg = "parseGSM0340_SRI_SM_response ok "
         PCA_GenLib.WriteLog(Msg,9)
 
     except:
-      Msg = "parseGSM0340_MTresponse error : <%s>,<%s>" % (sys.exc_type,sys.exc_value)
+      Msg = "parseGSM0340_SRI_SM_response error : <%s>,<%s>" % (sys.exc_type,sys.exc_value)
       PCA_GenLib.WriteLog(Msg,0)
       #raise
 
@@ -437,15 +399,9 @@ class Parser(PCA_Parser.Parser):
           content = ord(attrs)
           content = PCA_MAPParameters.op_code[content]
         elif tag_desc == "Originator_address" or tag_desc == "SC_Address" or tag_desc == "msisdn":
-
-          if tag_desc == "msisdn":  
-            digit = PCA_GenLib.getHexBCDString(attrs)
-            content = "%s" % digit[0:15]
-          else:
-            TOA = PCA_GenLib.getHexString(attrs[0])
-            digit = PCA_GenLib.getHexBCDString(attrs[1:])
-            content = "%s:%s" % (TOA,digit)
-
+          TOA = PCA_GenLib.getHexString(attrs[0])
+          content = PCA_GenLib.getHexBCDString(attrs[1:])
+          #content = "%s:%s" % (TOA,content)
         else:
          content = PCA_GenLib.getHexString(attrs)
         
@@ -463,9 +419,9 @@ class Parser(PCA_Parser.Parser):
            if self.Is_TCAP_begin == 1:
              self.parseGSM0340_request(attrs)
            else:
-             if self.app_context == "shortMsgMT_Relay_v3":
-               # MT response 
-               self.parseGSM0340_MTresponse(attrs)
+             if self.app_context == "shortMsgGateway_SRI_v3":
+               # SRI response 
+               self.parseGSM0340_SRI_SM_response(attrs)
              else:
                self.parseGSM0340_response(attrs)
         else:
@@ -476,7 +432,7 @@ class Parser(PCA_Parser.Parser):
           source = source[tag_length:]
         except IndexError:
           Msg = "parseTLV index error : <%s>,<%s>,name=<%s> " % (sys.exc_type,sys.exc_value,name)
-          PCA_GenLib.WriteLog(Msg,0)
+          PCA_GenLib.WriteLog(Msg,3)
           break
 
 
@@ -493,7 +449,7 @@ class Parser(PCA_Parser.Parser):
     try:
    
       Msg = "parser init"
-      PCA_GenLib.WriteLog(Msg,9)	
+      PCA_GenLib.WriteLog(Msg,9)        
       orig_data = source
       name = 'none'	
       self.StartParsing = 0
@@ -526,7 +482,7 @@ class Parser(PCA_Parser.Parser):
         
       if self.StartParsing == 1:
         self._cont_handler.endDocument(orig_data,self.DebugStr)
-                
+        
       Msg = "parser OK"
       PCA_GenLib.WriteLog(Msg,9)
     except:
@@ -535,6 +491,4 @@ class Parser(PCA_Parser.Parser):
       Msg = "orig data =\n%s" % PCA_GenLib.HexDump(orig_data)
       PCA_GenLib.WriteLog(Msg,0)
       raise
-
     
-

@@ -28,20 +28,20 @@ class Handler(PCA_Parser.ContentHandler):
   attrs = None	
   tcap_otid = ''
   tcap_dtid = ''
-  Message = {}
+  Message = ''
   dup_tag = 0
-  def __init__(self):
-	PCA_Parser.ContentHandler.__init__(self)
-	self.Message = {}
-		
+  def __init__(self,XMLCFG):
+      PCA_Parser.ContentHandler.__init__(self)
+      self.Message = {}
+      
   def startDocument(self):
        self.ExtraSocketData = ''
        self.IsApplicationMessage = 0
        self.Operation = chr(0x00)
        self.TID='na'
-       self.Message = {}
+       self.Message = ''
        self.dup_tag = 0
-	
+      
   def startElement(self, name, attrs):
     try:
       Msg = "startElement init"
@@ -52,11 +52,11 @@ class Handler(PCA_Parser.ContentHandler):
       name = "MAP %s" % name
       self.MessageName = name
       self.attrs = attrs
-      if name == "version":			
+      if name == "version":      
         self.version =  attrs
-      if name == "otid":			
-        self.tcap_otid =  attrs		
-			
+      if name == "otid":      
+        self.tcap_otid =  attrs      
+      
       Msg = "startElement OK"
       PCA_GenLib.WriteLog(Msg,9)        	
     except:
@@ -74,19 +74,19 @@ class Handler(PCA_Parser.ContentHandler):
       Msg = "%-20s=<%-25s>,Hex=%s" % (self.MessageName ,content,PCA_GenLib.HexDump(self.attrs))
       PCA_GenLib.WriteLog(Msg,3)
 
-      try:
-         if self.Message[self.MessageName] != None :
-            x=1 
-         self.dup_tag = self.dup_tag + 1
-         name = "%s %s" % (self.MessageName,self.dup_tag)
-         self.Message[name] = (content,self.attrs)
-      except:
-         self.Message[self.MessageName] = (content,self.attrs)
+      #try:
+      #   if self.Message[self.MessageName] != None :
+      #      x=1 
+      #   self.dup_tag = self.dup_tag + 1
+      #   name = "%s %s" % (self.MessageName,self.dup_tag)
+      #   self.Message[name] = (content,self.attrs)
+      #except:
+      #   self.Message[self.MessageName] = (content,self.attrs)
          
-			
+      
       Msg = "characters OK"
       PCA_GenLib.WriteLog(Msg,9)
-        	
+      
     except:
       Msg = "characters Error :<%s>,<%s>" % (sys.exc_type,sys.exc_value)
       PCA_GenLib.WriteLog(Msg,0)
@@ -106,19 +106,18 @@ class Handler(PCA_Parser.ContentHandler):
 
   def getHandlerResponse(self):	
     try:
-	Msg = "getHandlerResponse Init "
-	PCA_GenLib.WriteLog(Msg,9)
-			
-	Msg = "getHandlerResponse OK"
-	PCA_GenLib.WriteLog(Msg,9)
-			
-	return self.Message
-			
+      Msg = "getHandlerResponse Init "
+      PCA_GenLib.WriteLog(Msg,9)
+      
+      Msg = "getHandlerResponse OK"
+      PCA_GenLib.WriteLog(Msg,9)
+      
+      return self.Message
+      
     except:
       Msg = "getHandlerResponse  error : <%s>,<%s> " % (sys.exc_type,sys.exc_value)
       PCA_GenLib.WriteLog(Msg,0)
-      raise						
-						
+      raise      
 
 #########################################################################
 # 
@@ -134,7 +133,7 @@ class Parser(PCA_Parser.Parser):
   app_context = 'undef'
 
   def set_handler(self,name,attrs,content):
-    self._cont_handler.startElement(name, attrs)        		
+    self._cont_handler.startElement(name, attrs)      
     self._cont_handler.characters(content)
     self._cont_handler.endElement(name)
 
@@ -151,10 +150,10 @@ class Parser(PCA_Parser.Parser):
         TP_MR = gsm_0340_pdu[1]
 
         source = gsm_0340_pdu[2:]
-        
+
         name = "GSM0340 recipient length"
-	attrs = source[0]
-	content = ord(attrs)
+        attrs = source[0]
+        content = ord(attrs)
         tag_length = content
         tag_length = tag_length / 2
        
@@ -162,7 +161,7 @@ class Parser(PCA_Parser.Parser):
 
         source = source[1:]
         name = "GSM0340 recipient address"
-	attrs = source[0:tag_length+1]
+        attrs = source[0:tag_length+1]
         toa = PCA_GenLib.getHexString(attrs[1])
         #tag_value = "%s:%s" % (toa,PCA_GenLib.getHexBCDString(attrs[1:]))
         tag_value = "%s" % (PCA_GenLib.getHexBCDString(attrs[1:]))
@@ -183,7 +182,9 @@ class Parser(PCA_Parser.Parser):
 
         source = source[4:]
         tag_name = "GSM0340 sms text"
-	attrs = source[0:user_data_length]
+        attrs = source[0:user_data_length]
+        Msg = "PCA DEBUG MO Text = %s " % attrs
+        PCA_GenLib.WriteLog(Msg,2)
         tag_value = smspdu.pdu.unpack7bit(attrs)
         self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,tag_name,tag_value)
         self.set_handler("sms text",attrs,tag_value)
@@ -194,7 +195,7 @@ class Parser(PCA_Parser.Parser):
 
     except:
       Msg = "parseGSM0340_request error : <%s>,<%s>" % (sys.exc_type,sys.exc_value)
-      PCA_GenLib.WriteLog(Msg,0)
+      PCA_GenLib.WriteLog(Msg,3)
       #raise
 
 
@@ -307,7 +308,7 @@ class Parser(PCA_Parser.Parser):
           break
         
         self.tag_index = self.tag_index + 1
-	name = "Tag"
+        name = "Tag"
         attrs = source[0]
         tag_desc = "na"
         try:
@@ -332,7 +333,7 @@ class Parser(PCA_Parser.Parser):
         
         #self.set_handler(name,chr(0x00),content)
         self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,name,content)
-	
+        
         tag_class = ord(attrs) & 0xc0
         tag_class = tag_class >> 6
         Tag_Type = 'Primitive'
@@ -342,7 +343,7 @@ class Parser(PCA_Parser.Parser):
           Tag_Type = 'Constructor'
         else:
           
-	  content = ord(attrs)
+          content = ord(attrs)
           Tag_Type = 'Primitive'
 
         name = "tag type"
@@ -364,13 +365,13 @@ class Parser(PCA_Parser.Parser):
          
         name = "length"
         name = "%s length" % tag
-	attrs = source[0]
-	content = ord(attrs)  
+        attrs = source[0]
+        content = ord(attrs)  
         tag_length_form = "short"
         if content & 0x80:
            tag_length_form = "long"
            long_tag_length = chr(content & 0x7F) + source[1]
-	   content = struct.unpack("!H",long_tag_length)[0]
+           content = struct.unpack("!H",long_tag_length)[0]
            tag_length = content
            #tag_length = struct.unpack("!B"
         else:
@@ -378,7 +379,7 @@ class Parser(PCA_Parser.Parser):
            content = struct.unpack("!B",attrs)[0]
            tag_length = content
            
-	#self.set_handler(name,attrs,content)
+        #self.set_handler(name,attrs,content)
         name = "%s %s" % (tag_length_form,name)
         self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,name,content)
         
@@ -389,9 +390,7 @@ class Parser(PCA_Parser.Parser):
 
         name = "value"
         name = "%s value" % tag
-       
-
-	attrs = source[0:tag_length]
+        attrs = source[0:tag_length]
 
         # OpCode
         if self.invoke_id == 2 and tag_desc == "opCode":
@@ -431,7 +430,7 @@ class Parser(PCA_Parser.Parser):
           source = source[tag_length:]
         except IndexError:
           Msg = "parseTLV index error : <%s>,<%s>,name=<%s> " % (sys.exc_type,sys.exc_value,name)
-          PCA_GenLib.WriteLog(Msg,0)
+          PCA_GenLib.WriteLog(Msg,3)
           break
 
 
@@ -472,25 +471,23 @@ class Parser(PCA_Parser.Parser):
       #         Component Portion Length
       #           Component Type Tag
       #           Component Type Length
-			
+        
       if (source != None)  : 
         self._cont_handler.startDocument()
-	self.StartParsing = 1
+        self.StartParsing = 1
 
-	self.parseTLV(source)
-					
+        self.parseTLV(source)
+        
       if self.StartParsing == 1:
         self._cont_handler.endDocument(orig_data,self.DebugStr)
-        		
-	Msg = "parser OK"
-	PCA_GenLib.WriteLog(Msg,9)
+        
+      Msg = "parser OK"
+      PCA_GenLib.WriteLog(Msg,9)
     except:
       Msg = "parser  :<%s>,<%s>,name=<%s>" % (sys.exc_type,sys.exc_value,name)
       PCA_GenLib.WriteLog(Msg,0)
       Msg = "orig data =\n%s" % PCA_GenLib.HexDump(orig_data)
       PCA_GenLib.WriteLog(Msg,0)
       raise
-	        		
-		
-	  
+    
 

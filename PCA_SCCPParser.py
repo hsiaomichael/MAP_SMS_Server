@@ -31,17 +31,39 @@ import PCA_TCAPParser
 class Handler(PCA_Parser.ContentHandler):	
 	
   attrs = None	
-  Message = {}
-  def __init__(self):
-	PCA_Parser.ContentHandler.__init__(self)
-	self.Message = {}
+  Message = ''
+  TCAP_DebugStr = ''
+  SCCP_Message = {}
+  tcap_response_message = ""
+  def __init__(self,XMLCFG):
+        PCA_Parser.ContentHandler.__init__(self)
+        self.Message = ""
+        self.XMLCFG = XMLCFG
+        
+        Tag = "MESSAGE_TYPE"
+        message_type = int(PCA_XMLParser.GetXMLTagValue(XMLCFG,Tag))
+        self.message_type = struct.pack("!b",message_type)
+
+        Tag = "GT"
+        self.GT = PCA_XMLParser.GetXMLTagValue(XMLCFG,Tag)
+        Msg = "GT = <%s> " % self.GT
+        PCA_GenLib.WriteLog(Msg,2)
+        Tag = "SC_ADDRESS"
+        self.sc_address = PCA_XMLParser.GetXMLTagValue(XMLCFG,Tag)
+        Msg = "sc_address = <%s> " % self.sc_address
+        PCA_GenLib.WriteLog(Msg,2)
+
+        self.SCCP_Message = {}
+        self.Traffic_Type = "IN"
+       
 		
   def startDocument(self):
        self.ExtraSocketData = ''
        self.IsApplicationMessage = 0
        self.Operation = chr(0x00)
        self.TID='na'
-       self.Message = {}
+       self.Message = ''
+       
 	
   def startElement(self, name, attrs):
     try:
@@ -50,13 +72,13 @@ class Handler(PCA_Parser.ContentHandler):
 
       #Msg = "name=<%s>,attrs=<%s>" % (name,PCA_GenLib.HexDump(attrs))
       #PCA_GenLib.WriteLog(Msg,0)
+      self.attrs = attrs
       name = "SCCP %s" % name
       self.MessageName = name
-      self.Message[name] = attrs
+      #self.Message[name] = attrs
       self.attrs = attrs
       if name == "version":			
         self.version =  attrs
-			
 			
       Msg = "startElement OK"
       PCA_GenLib.WriteLog(Msg,9)        	
@@ -74,8 +96,33 @@ class Handler(PCA_Parser.ContentHandler):
 			
       Msg = "%-20s=<%-25s>,Hex=%s" % (self.MessageName ,content,PCA_GenLib.HexDump(self.attrs))
       PCA_GenLib.WriteLog(Msg,2)
-      self.Message[self.MessageName] = (content,self.attrs)
-			
+     
+      self.SCCP_Message[self.MessageName] = (content,self.attrs)
+      if self.MessageName == "Traffic Type":
+         self.Traffic_Type = content
+      elif self.MessageName == "SCCP calling Digits": 
+        Msg = "CgPA = <%s>" % content
+        PCA_GenLib.WriteLog(Msg,2)
+
+      elif self.MessageName == "SCCP called Digits": 
+        Msg = "CdPA = <%s>" % content
+        PCA_GenLib.WriteLog(Msg,2)
+      elif self.MessageName == "SCCP tcap_parameter":
+
+        TCAP_Message = self.attrs
+        tcap_parser = PCA_TCAPParser.Parser()
+        tcap_handler = PCA_TCAPParser.Handler(self.XMLCFG)
+        tcap_parser.setContentHandler(tcap_handler)
+        tcap_parser.parse(TCAP_Message)
+        self.tcap_response_message = tcap_handler.getHandlerResponse()
+        TCAP_ServerID = tcap_handler.getTID()
+        self.TCAP_DebugStr = tcap_handler.getDebugStr()
+        (self.orig_tid,self.dest_tid) = tcap_handler.getTCAP_ID()
+
+      else:
+        Msg = "%s=%s" % (self.MessageName ,content)
+        PCA_GenLib.WriteLog(Msg,2)
+
       Msg = "characters OK"
       PCA_GenLib.WriteLog(Msg,9)
         	
@@ -88,31 +135,67 @@ class Handler(PCA_Parser.ContentHandler):
   def endDocument(self,data,debugstr):
     try:
       
-      self.DebugStr = debugstr
+      #self.DebugStr = debugstr
+      self.DebugStr = "%s,TCAP MSG=%s" % (debugstr,self.TCAP_DebugStr)
+      #Msg = "self.DebugStr=%s" % self.DebugStr
+      #PCA_GenLib.WriteLog(Msg,1)
         	
     except:
       Msg = "startElement Error :<%s>,<%s>" % (sys.exc_type,sys.exc_value)
       PCA_GenLib.WriteLog(Msg,0)
       raise
   
-
   def getHandlerResponse(self):	
     try:
-	Msg = "getHandlerResponse Init "
-	PCA_GenLib.WriteLog(Msg,9)
+        Msg = "getHandlerResponse Init "
+        PCA_GenLib.WriteLog(Msg,9)
+
+        Msg = "Traffic Type = <%s> " % self.Traffic_Type
+        PCA_GenLib.WriteLog(Msg,2)
+
+        Protocol_Class = chr(0x80)
+       
+        hoop_counter = chr(0x0f)
+        P_2_first_parameter = chr(0x04)
+        # CgPA
+        TT = self.SCCP_Message["SCCP called Translation Type"][1]
+        Numbering_plan = self.SCCP_Message["SCCP called Numbering plan"][1]
+        NoA = self.SCCP_Message["SCCP called Nature of Addr"][1]
+        Digits = self.SCCP_Message["SCCP called Digits"][1]
+        GT = TT + Numbering_plan + NoA + Digits
+        calling_address = self.SCCP_Message["SCCP called Address Indicator"][1] + self.SCCP_Message["SCCP called SSN"][1] + GT
+        len_of_calling_address_digits = len(Digits)
+        
+        option_parameter = chr(0x00)
+        # CdPA
+        TT = self.SCCP_Message["SCCP calling Translation Type"][1]
+        Numbering_plan = self.SCCP_Message["SCCP calling Numbering plan"][1]
+        NoA = self.SCCP_Message["SCCP calling Nature of Addr"][1]
+        Digits = self.SCCP_Message["SCCP calling Digits"][1]
+        len_of_called_address_digits = len(Digits)
+        GT = TT + Numbering_plan + NoA + Digits
+        called_address = self.SCCP_Message["SCCP calling Address Indicator"][1] + self.SCCP_Message["SCCP calling SSN"][1] + GT
+
+        called_address_hex_length = struct.pack("!B",len(called_address))
+        calling_address_hex_length = struct.pack("!B",len(calling_address))
+        tcap_message = self.tcap_response_message
+        tcap_message_hex_length = struct.pack("!B",len(tcap_message))
+ 
+        P_2_second_parameter = struct.pack("!b",4 + 3 + len_of_called_address_digits + 2 )
+        P_2_third_parameter = struct.pack("!b",4 + 3 + len_of_called_address_digits + 2 + 5 +  len_of_calling_address_digits )       
+        
+        sccp_data = self.message_type +  Protocol_Class + hoop_counter + P_2_first_parameter + P_2_second_parameter + P_2_third_parameter + option_parameter + called_address_hex_length + called_address + calling_address_hex_length + calling_address + tcap_message_hex_length + tcap_message
+      
+        self.Message = sccp_data
 
 	Msg = "getHandlerResponse OK"
 	PCA_GenLib.WriteLog(Msg,9)
-
 			
-	return self.Message
-			
+	return self.Message			
     except:
       Msg = "getHandlerResponse  error : <%s>,<%s> " % (sys.exc_type,sys.exc_value)
       PCA_GenLib.WriteLog(Msg,0)
-      raise								
-						
-							
+      raise						
 						
 
 #########################################################################
@@ -197,7 +280,6 @@ class Parser(PCA_Parser.Parser):
         content = content & 0xF0
         content = content >> 4
 	self.set_handler(name,attrs,content)
-
        
         name = "Encoding scheme"
         name = "%s %s" % (address_type,name)
@@ -222,7 +304,6 @@ class Parser(PCA_Parser.Parser):
         self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,name,content)
         break
 
-
       Msg = "parseAddress Ok "
       PCA_GenLib.WriteLog(Msg,9)
     except:
@@ -231,7 +312,7 @@ class Parser(PCA_Parser.Parser):
       #Msg = "dump source data =<\n%s\n>" % PCA_GenLib.HexDump(source)
       #PCA_GenLib.WriteLog(Msg,0)
 	
-  def parse(self, source):
+  def parse(self, source,Traffic_Type):
     try:
       Msg = "parser init"
       PCA_GenLib.WriteLog(Msg,9)	
@@ -253,6 +334,11 @@ class Parser(PCA_Parser.Parser):
         self._cont_handler.startDocument()
 	self.StartParsing = 1
 
+        name = "Traffic Type"
+	attrs = Traffic_Type
+	content = Traffic_Type
+	self.set_handler(name,attrs,content)
+
 	name = "Message Type"
         attrs = source[0]
         message_type = ''
@@ -267,19 +353,20 @@ class Parser(PCA_Parser.Parser):
         # Number of Tag depend on message type
         #################################################
         
-        if message_type == "XUDTS_Extended_unitdata":
+        if (message_type == "XUDTS_Extended_unitdata") or (message_type == "UDTS_unitdata"):
           source = source[1:]
 	  name = "Protocol Class"
 	  attrs = source[0]
 	  content = ord(attrs)
 	  self.set_handler(name,attrs,content)
 
-          source = source[1:]
-	  name = "Hop Counter"
-	  attrs = source[0]
-          content = ord(attrs)
-	  self.set_handler(name,attrs,content)
-          self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,name,content)
+          if (message_type == "XUDTS_Extended_unitdata") :
+            source = source[1:]
+	    name = "Hop Counter"
+	    attrs = source[0]
+            content = ord(attrs)
+	    self.set_handler(name,attrs,content)
+            self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,name,content)
        
           source = source[1:]
 	  name = "P called address"
@@ -297,8 +384,7 @@ class Parser(PCA_Parser.Parser):
           P_calling_address = content
           calling_party_address = source[content+1:]
 	  self.set_handler(name,attrs,content)
-          #self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,name,content)
-        
+          #self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,name,content)        
 
           source = source[1:]
 	  name = "P tcap Param"
@@ -333,27 +419,13 @@ class Parser(PCA_Parser.Parser):
           ####################################################         
           #Msg = "DEBUG tcap =\n%s" % PCA_GenLib.HexDump(tcap_parameter)
           #PCA_GenLib.WriteLog(Msg,0)
-          TCAP_Message = tcap_parameter
-          tcap_parser = PCA_TCAPParser.Parser()		
-          tcap_handler = PCA_TCAPParser.Handler()
-          tcap_parser.setContentHandler(tcap_handler)
-          tcap_parser.parse(TCAP_Message)
-          tcap_response_message = tcap_handler.getHandlerResponse()
-          #for key in tcap_response_message:
-          #         Msg = "TCAP DBG key=<%s> : value=<%s>*" % (key,tcap_response_message[key])
-          #         PCA_GenLib.WriteLog(Msg,1)
-          self.set_handler('tcap_msg_dict',chr(0x00),tcap_response_message)
-          TCAP_ServerID = tcap_handler.getTID()
-          TCAP_DebugStr = tcap_handler.getDebugStr()
-          #Msg = "TCAP_DebutStr = %s" % TCAP_DebugStr
-          #PCA_GenLib.WriteLog(Msg,0)
-          self.DebugStr = "%s,TCAP MSG=%s" % (self.DebugStr,TCAP_DebugStr)
+         
+          self.set_handler('tcap_parameter',tcap_parameter,"tcap_parameter")
+          #self.DebugStr = "%s,TCAP MSG=%s" % (self.DebugStr,TCAP_DebugStr)
      
         else:
              Msg = "SCCP message type = %s not implement yet" % message_type
 	     PCA_GenLib.WriteLog(Msg,0)
-  
-			
 					
       if self.StartParsing == 1:
         self._cont_handler.endDocument(orig_data,self.DebugStr)

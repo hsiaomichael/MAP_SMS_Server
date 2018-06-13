@@ -1,5 +1,14 @@
 tcap_begin_tag = chr(0x62)
 tcap_end_tag = chr(0x64)
+tcap_continue = chr(0x65)
+tcap_abort = chr(0x67)
+
+Tag_Header_Desc= {}
+Tag_Header_Desc[tcap_begin_tag] = 'tcap_begin'
+Tag_Header_Desc[tcap_end_tag] = 'tcap_end'
+Tag_Header_Desc[tcap_continue] = 'tcap_continue'
+
+tcap_result_source = chr(0x02)
 otid = chr(0x48)
 dtid = chr(0x49)
 abort = chr(0x4a)
@@ -9,7 +18,7 @@ Object_Identifier_Tag = chr(0x06)
 Single_ASN1_Type = chr(0xa0)
 dialog_request_Tag = chr(0x60)
 dialog_response_Tag = chr(0x61)
-dialog_abort_Tag = chr(0x61)
+dialog_abort_Tag = chr(0x64)
 protocol_version_Tag = chr(0x80)
 Application_Context = chr(0xa1)
 Application_Context_result = chr(0xa2)
@@ -18,8 +27,7 @@ component_portion = chr(0x6c)
 #component_type_invoke = chr(0xa1)
 component_type_reject = chr(0xa4)
 Tag_Desc= {}
-Tag_Desc[tcap_begin_tag] = 'tcap_begin'
-Tag_Desc[tcap_end_tag] = 'tcap_end'
+Tag_Desc[tcap_result_source] = 'tcap_result_source'
 Tag_Desc[otid] = 'Originating TID'
 Tag_Desc[dtid] = 'Destination TID'
 Tag_Desc[abort] = 'abort'

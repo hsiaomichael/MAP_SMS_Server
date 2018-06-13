@@ -50,7 +50,10 @@ class Acceptor:
       self.SocketConnectionPool, self.ReadSet = [], []
 
       SocketDescriptor = sctp.sctpsocket_tcp(socket.AF_INET)
-      SocketDescriptor.bind((self.host, self.port))
+      if self.host == "any":
+        SocketDescriptor.bind(("", self.port))
+      else:
+        SocketDescriptor.bind((self.host, self.port))
       SocketDescriptor.listen(5)
       self.SocketConnectionPool.append(SocketDescriptor) # add to main list to identify
       self.ReadSet.append(SocketDescriptor)    

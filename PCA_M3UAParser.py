@@ -87,6 +87,8 @@ class Handler(PCA_Parser.ContentHandler):
     try:
       
       self.DebugStr = debugstr
+      Msg = "self.DebugStr=%s" % self.DebugStr
+      PCA_GenLib.WriteLog(Msg,1)
         	
     except:
       Msg = "startElement Error :<%s>,<%s>" % (sys.exc_type,sys.exc_value)
@@ -262,6 +264,8 @@ class Parser(PCA_Parser.Parser):
           Msg = "SCCP DebutStr = %s" % SCCP_DebugStr
           PCA_GenLib.WriteLog(Msg,2)
           self.DebugStr = "%s,SCCP MSG = %s" % (self.DebugStr,SCCP_DebugStr)
+          Msg = "PCA DEBUG self.DebugStr=%s" % self.DebugStr
+          PCA_GenLib.WriteLog(Msg,1)
           #break
         #Msg = "parseTLV len of sccp message = %s ,data_length=%s, data=\n%s " % (length,len(source),PCA_GenLib.HexDump(source))
         #PCA_GenLib.WriteLog(Msg,0)

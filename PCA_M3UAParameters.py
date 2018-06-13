@@ -115,3 +115,9 @@ Reserved_Tag = chr(0x00)+chr(0x00)
 TAG_DESC[Reserved_Tag] = 'Resreved Tag'
 TAG_TYPE[Reserved_Tag] = 'hex'
 
+
+
+Affected_Point_Code_Tag = chr(0x00)+chr(0x12)
+TAG_DESC[Affected_Point_Code_Tag] = 'Affected_Point_Code_Tag'
+TAG_TYPE[Affected_Point_Code_Tag] = 'unsigned integer'
+
