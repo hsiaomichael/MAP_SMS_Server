@@ -6,6 +6,7 @@ Sigtran Support :  encode/decode (M3UA|SCCP|TCAP|MAP|GSM 0340) protocol
 Send MO-FSM , send SRI-ack and MT-ack to SMSC
 Receive MO-FSM-ack , SRI-SM , MT-FSM 
 
+Support FSG(Home Route) : Send SRI-SM , MT-FSM ...
 
 
 Pre-Request

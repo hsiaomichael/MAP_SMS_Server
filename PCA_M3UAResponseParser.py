@@ -118,6 +118,7 @@ class Handler(PCA_Parser.ContentHandler):
         SCCP_ServerID = sccp_handler.getTID()
         self.SCCP_DebugStr = sccp_handler.getDebugStr()
         (self.orig_tid,self.dest_tid) = sccp_handler.getTCAP_ID()
+        (self.imsi,self.NNN) = sccp_handler.getSRI_SM_resp()
         
         protocol_data_msg = self.opc + self.dpc + self.SI + self.NI + self.MP + self.SLS + sccp_response_message
         message_length = len(protocol_data_msg) + 4
@@ -221,7 +222,7 @@ class Handler(PCA_Parser.ContentHandler):
       PCA_GenLib.WriteLog(Msg,0)
       raise
     
-
+  
 #########################################################################
 # 
 #

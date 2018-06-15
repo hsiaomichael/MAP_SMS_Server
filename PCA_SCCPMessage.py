@@ -54,6 +54,12 @@ class Writer:
       Msg = "sc_address = <%s> " % self.sc_address
       PCA_GenLib.WriteLog(Msg,1)
 
+      Tag = "FSG_GT"
+      self.FSG_GT = PCA_XMLParser.GetXMLTagValue(XMLCFG,Tag)
+      
+     
+            
+            
       Msg = "Writer OK"
       PCA_GenLib.WriteLog(Msg,9)
     except:
@@ -69,6 +75,8 @@ class Writer:
   def getMessage(self,map_type,parameter_list,parameter_list_request):
     try:
 
+      Msg = "getMessage map_type = <%s>" % map_type
+      PCA_GenLib.WriteLog(Msg,1)
       message_type = struct.pack("!b",self.message_type)
       #Protocol_Class = chr(0x00) # parameter_list["SCCP Protocol Class"][1]
       Protocol_Class = chr(0x80)
@@ -84,7 +92,7 @@ class Writer:
         TT = chr(0x00)
         Numbering_plan = chr(0x12) ## even number of digits ..
         NoA = chr(0x04)
-        Digits = PCA_GenLib.converStringToReverseBCD(parameter_list['recipient'])
+        Digits = PCA_GenLib.converStringToReverseBCD(parameter_list['recipient'][1])
 
         GT = TT + Numbering_plan + NoA + Digits
         address_indicator = chr(0x12)
@@ -99,7 +107,7 @@ class Writer:
         TT = chr(0x00)
         Numbering_plan = chr(0x12) ## even number of digits ..
         NoA = chr(0x04)
-        Digits = PCA_GenLib.converStringToReverseBCD(parameter_list['NNN'])
+        Digits = PCA_GenLib.converStringToReverseBCD(parameter_list['NNN'][1])
 
         GT = TT + Numbering_plan + NoA + Digits
         address_indicator = chr(0x12)
@@ -141,7 +149,7 @@ class Writer:
         TT = chr(0x00)
         Numbering_plan = chr(0x12) ## even number of digits ..
         NoA = chr(0x04)
-        Digits = PCA_GenLib.converStringToReverseBCD(self.sc_address)
+        Digits = PCA_GenLib.converStringToReverseBCD(self.GT)
 
         GT = TT + Numbering_plan + NoA + Digits
         address_indicator = chr(0x12)

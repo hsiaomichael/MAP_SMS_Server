@@ -23,6 +23,8 @@ class ContentHandler:
     Message = None
     orig_tid = ''
     dest_tid = ''
+    imsi = ''
+    NNN = ''
     def __init__(self):
         self._locator = None
 
@@ -85,7 +87,10 @@ class ContentHandler:
         return self.Message
 
     def getTCAP_ID(self):	
-      return (self.orig_tid,self.dest_tid)
+        return (self.orig_tid,self.dest_tid)
+
+    def getSRI_SM_resp(self):	
+        return (self.imsi,self.NNN)
 #########################################################################
 # 
 #

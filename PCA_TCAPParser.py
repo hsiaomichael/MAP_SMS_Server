@@ -44,6 +44,8 @@ class Handler(PCA_Parser.ContentHandler):
   response_message = ''
   component_portion = ''
   Is_MAP_v1 = 0
+  NNN = ''
+  imsi=''
   
   def __init__(self,XMLCFG):
 
@@ -76,6 +78,8 @@ class Handler(PCA_Parser.ContentHandler):
        self.tcap_continue = 0
        self.orig_tid = ''
        self.dest_tid = ''
+       self.NNN = ''
+       self.imsi = ''
   
   def startElement(self, name, attrs):
     try:
@@ -109,7 +113,7 @@ class Handler(PCA_Parser.ContentHandler):
       self.TCAP_Message[self.MessageName] = (content,self.attrs)
   
       Msg = "%-20s=<%-25s>,Hex=%s" % (self.MessageName ,content,PCA_GenLib.HexDump(self.attrs))
-      PCA_GenLib.WriteLog(Msg,3)
+      PCA_GenLib.WriteLog(Msg,2)
       if self.MessageName != "TCAP map_message":
         Msg = "%s=%s" % (self.MessageName ,content)
         PCA_GenLib.WriteLog(Msg,3)
@@ -125,6 +129,7 @@ class Handler(PCA_Parser.ContentHandler):
         tag = chr(0x49)  # Dest TID Tag
         self.transaction_portion = self.transaction_portion + self.constructTLV(tag,tag_data)
       elif self.MessageName == "TCAP Destination TID":
+        self.tcap_begin = 0
         self.dest_tid = self.attrs
       elif self.MessageName == "TCAP tcap_begin":
         self.tcap_begin = 1
@@ -132,16 +137,17 @@ class Handler(PCA_Parser.ContentHandler):
         self.tcap_continue = 1
       elif self.MessageName == "TCAP map_message":
         self.component_portion_avail = 1
+       
             
         try: 
               # Use this to check if map v1 or tcap continue
               self.TCAP_Message["TCAP Application_Context"][1]              
               Msg = "dll_file_name = <%s>" % self.dll_file_name
-              PCA_GenLib.WriteLog(Msg,3)
+              PCA_GenLib.WriteLog(Msg,1)
         except:
           if self.tcap_begin == 1 or self.tcap_continue == 1:
             Msg = "MAP v1 or tcap continue message"
-            PCA_GenLib.WriteLog(Msg,2)
+            PCA_GenLib.WriteLog(Msg,1)
             try:
               opCode = PCA_MAPParameters.op_code[ord(content[7])]
               if opCode == "mo-ForwardSM":
@@ -152,17 +158,16 @@ class Handler(PCA_Parser.ContentHandler):
                 opCode = "mt-ForwardSM"                
                      
             Msg = "MAP v1 get op code = %s" % opCode
-            PCA_GenLib.WriteLog(Msg,2)
+            PCA_GenLib.WriteLog(Msg,1)
             if opCode == "sendRoutingInfoForSM":
                self.dll_file_name = "shortMsgGateway_SRI_v1"
             elif opCode == "mt-ForwardSM":
                self.dll_file_name = "shortMsgMT_Relay_v3"
-                
             else:
                self.dll_file_name = "PCA_MAPParser"
           else:
               Msg = "not tcap begin message"
-              PCA_GenLib.WriteLog(Msg,2)
+              PCA_GenLib.WriteLog(Msg,1)
               self.dll_file_name = "PCA_MAPParser"
             # Test abort for MAP fallback test
             #if self.dll_file_name == "shortMsgMT_Relay_v3":
@@ -171,8 +176,12 @@ class Handler(PCA_Parser.ContentHandler):
             # PCA_GenLib.WriteLog(Msg,1)
             #  self.TCAP_Tag = PCA_TCAPParameters.tcap_abort
 
+       
+        #if self.tcap_begin == 0 or self.tcap_continue != 1:
+        #    self.dll_file_name = "PCA_MAPParser"
+        
         Msg = "%s : Parser DLL Name = %s" % (self.MessageName,self.dll_file_name)
-        PCA_GenLib.WriteLog(Msg,1)
+        PCA_GenLib.WriteLog(Msg,1)   
         Script_File = PCA_DLL.DLL(self.dll_file_name)
         factory_function="Parser"
         factory_component = Script_File.symbol(factory_function)
@@ -186,6 +195,11 @@ class Handler(PCA_Parser.ContentHandler):
         parser.parse(content,self.tcap_begin,self.dll_file_name)
          
         response_message = handler.getHandlerResponse()
+        if string.find(self.dll_file_name ,"shortMsgGateway_SRI") != -1:
+            
+            (self.imsi,self.NNN) = handler.getSRI_SM_resp()
+            Msg = "sri-sm response ,imsi=<%s>,NNN=<%s>, ready send MT-FSM" % (self.imsi,self.NNN)
+            PCA_GenLib.WriteLog(Msg,1) 
         #self.set_handler('map_msg_dict',chr(0x00),response_message)
         response_ServerID = handler.getTID()
         self.response_DebugStr = handler.getDebugStr()
@@ -211,6 +225,8 @@ class Handler(PCA_Parser.ContentHandler):
       raise
   
 
+  def getSRI_SM_resp(self):
+        return (self.imsi,self.NNN)
   def getHandlerResponse(self):	
     try:
         Msg = "getHandlerResponse Init "
@@ -224,6 +240,8 @@ class Handler(PCA_Parser.ContentHandler):
           Msg = "TCAP begin message ready for tcap continue"
           PCA_GenLib.WriteLog(Msg,3)
           self.TCAP_Tag = chr(0x65) # tcap continue tag
+        
+          #Source TCAP ID
           tag = chr(0x48)             
           tag_data = struct.pack("!I",self.tcap_tid)
           self.tcap_tid = self.tcap_tid + 1             
@@ -364,7 +382,7 @@ class Handler(PCA_Parser.ContentHandler):
     except:
       Msg = "getHandlerResponse  error : <%s>,<%s> " % (sys.exc_type,sys.exc_value)
       PCA_GenLib.WriteLog(Msg,0)
-      raise				
+      raise
 
 #########################################################################
 # 
@@ -394,6 +412,7 @@ class Parser(PCA_Parser.Parser):
       tlv_type = 'na'
       name = 'na'
       number_of_tlv = 0
+      tag_desc = ""
       
       #Msg = "MAP parseTLV data =\n%s" % PCA_GenLib.HexDump(source)
       #PCA_GenLib.WriteLog(Msg,0)
@@ -503,6 +522,7 @@ class Parser(PCA_Parser.Parser):
 
         attrs = source[0:tag_length]
        
+       
         if tag_desc == "oid":
           try:
              Msg = "oid debug =\n%s" % PCA_GenLib.HexDump(attrs)
@@ -528,10 +548,19 @@ class Parser(PCA_Parser.Parser):
         elif tag_desc == "tcap_continue":
           self.Is_TCAP_begin = 2
           content = PCA_GenLib.getHexString(attrs)
+          self.set_handler(tag_desc,attrs,content)
+          #Msg = "PCA DEBUG tcap_continue "
+          #PCA_GenLib.WriteLog(Msg,1)
           self.app_context = "shortMsgMT_Relay_v3_continue"
+          self.set_handler("ap_context_name",self.app_context,self.app_context)  
+            
+            
         else:        
           
           content = PCA_GenLib.getHexString(attrs)
+        
+        #Msg = "PCA DEBUG tag_desc=<%s>,content=<%s>" % (tag_desc,content)
+        #PCA_GenLib.WriteLog(Msg,1)
         
         if Tag_Type == 'Constructor':
           if tag_desc == "component_portion":
@@ -545,7 +574,13 @@ class Parser(PCA_Parser.Parser):
             #PCA_GenLib.WriteLog(Msg,3)
           else:
             self.parseTLV(attrs)
+            #if tag_desc == "tcap_continue":
+            #        self.set_handler(tag_desc,attrs,content)
+                    #Msg = "PCA DEBUG Possible MT-FSM-Req tacp continue .... "
+                    #PCA_GenLib.WriteLog(Msg,1)
+            #else:
             self.set_handler(tag,attrs,content)
+           
         else:
           self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,name,content)
           self.set_handler(tag,attrs,content)

@@ -8,14 +8,16 @@
 # SCTP Server Socket
 #
 #
-# Author    : Michael Hsiao
-#
+# Author    : Michael Hsiao#
 # Date      : 2016/09/04
 #
 # Description
 # ===========
 # SCTP Server Template
 #
+# Modify    : Michael Hsiao#
+# Date      : 2018/06/14
+# Desc      : add FSG support
 
 import sys, time,string,os
 import sctp,socket,select,smspdu
@@ -31,6 +33,7 @@ g_imsi = None
 g_text = None
 g_total_segment = 0
 g_current_segment = 0
+g_sca = None
 #######################################################################
 #
 #######################################################################
@@ -89,24 +92,23 @@ class Acceptor(PCA_SCTPServerSocket.Acceptor):
   M3UAMessage = None
   def __init__(self,XMLCFG):
 
-    try:
-     Msg = "Acceptor init"
-     PCA_GenLib.WriteLog(Msg,0)
+        try:
+            Msg = "Acceptor init"
+            PCA_GenLib.WriteLog(Msg,0)
 
-     PCA_SCTPServerSocket.Acceptor.__init__(self,XMLCFG)
+            PCA_SCTPServerSocket.Acceptor.__init__(self,XMLCFG)
 
-     self.parser = PCA_M3UAResponseParser.Parser()
-     self.handler = PCA_M3UAResponseParser.Handler(XMLCFG)
-     self.parser.setContentHandler(self.handler)
-     self.M3UAMessage = PCA_M3UAMessage.Writer(XMLCFG)
+            self.parser = PCA_M3UAResponseParser.Parser()
+            self.handler = PCA_M3UAResponseParser.Handler(XMLCFG)
+            self.parser.setContentHandler(self.handler)
+            self.M3UAMessage = PCA_M3UAMessage.Writer(XMLCFG)
 
-     Msg = "Acceptor OK"
-     PCA_GenLib.WriteLog(Msg,0)
-    except:
-     Msg = "Acceptor Error :<%s>,<%s>" % (sys.exc_type,sys.exc_value)
-     PCA_GenLib.WriteLog(Msg,0)
-     raise
-
+            Msg = "Acceptor OK"
+            PCA_GenLib.WriteLog(Msg,0)
+        except:
+            Msg = "Acceptor Error :<%s>,<%s>" % (sys.exc_type,sys.exc_value)
+            PCA_GenLib.WriteLog(Msg,0)
+            raise
 
   ########################################################
   ## M3UA dispatcher
@@ -166,7 +168,7 @@ class Acceptor(PCA_SCTPServerSocket.Acceptor):
         try:
             self.handle_cmd(self.SocketConnection,"/tmp/pca.cmd")
         except AttributeError:
-            Msg = "connection not ready yet"
+            Msg = "association not established yet"
             PCA_GenLib.WriteLog(Msg,1)
 
       Msg = "dispatcher OK"
@@ -185,6 +187,7 @@ class Acceptor(PCA_SCTPServerSocket.Acceptor):
     global g_text
     global g_total_segment
     global g_current_segment
+    global g_sca
     try:
       data =  open(file).read()[0:-1]
       Msg = "data = <%s>" % data
@@ -203,7 +206,19 @@ class Acceptor(PCA_SCTPServerSocket.Acceptor):
         PCA_GenLib.WriteLog(Msg,0)
         (g_originator,g_recipient,g_imsi,g_text) = (originator,recipient,imsi,text)
         self.sendMO_tcap_begin(conn)
-
+      elif string.find(data,"Alert") != -1:
+        (cmd,msisdn) = string.split(data,",")
+        Msg = "send sc-alert msisdn=<%s>" % (msisdn)
+        PCA_GenLib.WriteLog(Msg,0)
+        self.alertServiceCentre(conn,msisdn)
+      elif string.find(data,"HR") != -1:
+        (cmd,msisdn,fsg_sca,originator,text) = string.split(data,",")
+        Msg = "HR request msisdn=<%s>,fsg_sca=<%s>,originator=<%s>,text=<%s>" % (msisdn,fsg_sca,originator,text)
+        PCA_GenLib.WriteLog(Msg,0)
+        g_text = text
+        g_originator = originator
+        g_sca = fsg_sca
+        self.SendRoutingInfo(conn,msisdn,fsg_sca)
       else:
         Msg = "unknow command data = <%s>" % data
         PCA_GenLib.WriteLog(Msg,0)
@@ -224,13 +239,9 @@ class Acceptor(PCA_SCTPServerSocket.Acceptor):
      PCA_GenLib.WriteLog(Msg,9)
      #Msg = "DEBUG con=<%s> msg = *\n%s\n*" % (id(conn),PCA_GenLib.HexDump(Message))
      #PCA_GenLib.WriteLog(Msg,0)
-     Msg = "----------------------------------------------------------------------------------"
-     PCA_GenLib.WriteLog(Msg,3)
+     
      self.parser.parse(Message,"IN")
-     response_message = self.handler.getHandlerResponse()
-     Msg = "----------------------------------------------------------------------------------"
-     PCA_GenLib.WriteLog(Msg,3)
-
+     response_message = self.handler.getHandlerResponse()         
      ServerID = self.handler.getTID()
      DebugStr = self.handler.getDebugStr()
 
@@ -243,19 +254,12 @@ class Acceptor(PCA_SCTPServerSocket.Acceptor):
        Msg = "recv : %s*" % DebugStr
        PCA_GenLib.WriteLog(Msg,1)
 
+     
      #ASP Up (ASPUP) or "ASP Active (ASPAC) or "Heartbeat (BEAT)" or Heartbeat Acknowledgement (BEAT ACK)"
 
      #if response_message != None and string.find(DebugStr,"tcap_end") == -1 and string.find(DebugStr,"tcap_continue") == -1:
      if string.find(DebugStr,"tcap_continue") != -1 and string.find(DebugStr,"shortMsgMO_Relay_v3") != -1:
        Msg = "tcap tcap_continue , ready send MO-segment message"
-       PCA_GenLib.WriteLog(Msg,1)
-       request_parameter_list = {}
-       (orig_tid,dest_tid) = self.handler.getTCAP_ID()
-       request_parameter_list["TCAP Originating TID"] = (orig_tid,orig_tid)
-       request_parameter_list["TCAP Destination TID"] = (dest_tid,dest_tid)
-       self.sendMO_segment(conn,request_parameter_list)
-     elif g_current_segment < g_total_segment :
-       Msg = "segment info current=<%s>,total=<%s> we may need to send segment msg" % (g_current_segment, g_total_segment)
        PCA_GenLib.WriteLog(Msg,1)
        request_parameter_list = {}
        (orig_tid,dest_tid) = self.handler.getTCAP_ID()
@@ -274,6 +278,15 @@ class Acceptor(PCA_SCTPServerSocket.Acceptor):
          Msg = "send : %s*" % DebugStr
          PCA_GenLib.WriteLog(Msg,1)
        self.sendDataToSocket(conn,response_message)
+     elif g_current_segment < g_total_segment :
+       Msg = "segment info current=<%s>,total=<%s> we may need to send segment msg" % (g_current_segment, g_total_segment)
+       PCA_GenLib.WriteLog(Msg,1)
+       request_parameter_list = {}
+       (orig_tid,dest_tid) = self.handler.getTCAP_ID()
+       request_parameter_list["TCAP Originating TID"] = (orig_tid,orig_tid)
+       request_parameter_list["TCAP Destination TID"] = (dest_tid,dest_tid)
+       self.sendMO_segment(conn,request_parameter_list)
+
        ################################################
        # Send MO-FSM once link active
        ################################################
@@ -294,8 +307,18 @@ class Acceptor(PCA_SCTPServerSocket.Acceptor):
          #self.send_alertServiceCentre(conn)
 
      else:
-       Msg = "tcap end or no response message , not response back ...."
-       PCA_GenLib.WriteLog(Msg,1)
+         if string.find(DebugStr,"sendRoutingInfoForSM") != -1:
+            Msg = "sri-sm response , ready send MT-FSM"
+            PCA_GenLib.WriteLog(Msg,1)      
+            
+            (imsi,NNN) = self.handler.getSRI_SM_resp()
+            Msg = "sri-sm response ,imsi=<%s>,NNN=<%s>, ready send MT-FSM" % (imsi,NNN)
+            PCA_GenLib.WriteLog(Msg,1)    
+            self.MT(conn,NNN,imsi)
+            
+         else:
+            Msg = "tcap end or no response message , not response back ...."
+            PCA_GenLib.WriteLog(Msg,1)
 
      Msg = "handle_event OK"
      PCA_GenLib.WriteLog(Msg,9)
@@ -382,7 +405,7 @@ class Acceptor(PCA_SCTPServerSocket.Acceptor):
      PCA_GenLib.WriteLog(Msg,1)
 
      g_current_segment = g_current_segment + 1
-
+     
      request_parameter_list['originator'] = (originator_address,originator_address)
      request_parameter_list['recipient'] = (recipient_address,recipient_address)
      request_parameter_list['imsi'] = (imsi,imsi)
@@ -430,23 +453,81 @@ class Acceptor(PCA_SCTPServerSocket.Acceptor):
   #
   #
   #########################################################################
-  def send_alertServiceCentre(self,conn):
+  def alertServiceCentre(self,conn,msisdn):
     try:
-     Msg = "send_alertServiceCentre"
+        Msg = "alertServiceCentre"
+        PCA_GenLib.WriteLog(Msg,9)
+
+        request_parameter_list = {}
+      
+        request_parameter_list['alert_MSISDN'] = (msisdn,msisdn)
+        Message = self.M3UAMessage.getPayloadData("alertSC",request_parameter_list,request_parameter_list)
+        self.sendDataToSocket(conn,Message)
+
+        Msg = "alertServiceCentre OK"
+        PCA_GenLib.WriteLog(Msg,9)
+    except:
+        Msg = "alertServiceCentre Error :<%s>,<%s>" % (sys.exc_type,sys.exc_value)
+        PCA_GenLib.WriteLog(Msg,0)
+        raise
+  ########################################################################
+  #
+  #
+  #########################################################################
+  def SendRoutingInfo(self,conn,msisdn,fsg_sca):
+    try:
+        Msg = "SendRoutingInfo"
+        PCA_GenLib.WriteLog(Msg,9)
+
+        request_parameter_list = {}
+      
+        request_parameter_list['recipient'] = (msisdn,msisdn)
+        request_parameter_list['fsg_sca'] = (fsg_sca,fsg_sca)
+        
+        
+        Message = self.M3UAMessage.getPayloadData("SRI-SM",request_parameter_list,request_parameter_list)
+        self.sendDataToSocket(conn,Message)
+
+        Msg = "SendRoutingInfo OK"
+        PCA_GenLib.WriteLog(Msg,9)
+    except:
+        Msg = "SendRoutingInfo Error :<%s>,<%s>" % (sys.exc_type,sys.exc_value)
+        PCA_GenLib.WriteLog(Msg,0)
+        raise
+        
+  ########################################################################
+  #
+  #
+  #########################################################################
+  def MT(self,conn,NNN,imsi):
+    global g_originator
+    global g_text
+    global g_sca
+    try:
+     Msg = "MT"
      PCA_GenLib.WriteLog(Msg,9)
-
+     (originator_address,sca,sms_text_data) =   (g_originator,g_sca,g_text)
+     imsi = "%sf" % imsi
      request_parameter_list = {}
+     request_parameter_list['originator'] = (originator_address,originator_address)    
+     request_parameter_list['imsi'] = (imsi,imsi)
+     request_parameter_list['NNN'] = (NNN,NNN)
+     request_parameter_list['sca'] = (sca,sca)
+   
+     (sms_text_length,sms_text) = smspdu.pdu.pack7bit(sms_text_data)
 
-     Message = self.M3UAMessage.getPayloadData("alertSC",request_parameter_list,request_parameter_list)
+     request_parameter_list['sms_text'] = (sms_text,sms_text)
+     request_parameter_list['sms_text_length'] = (sms_text_length,sms_text_length)
+
+     Message = self.M3UAMessage.getPayloadData("MT-FSM",request_parameter_list,request_parameter_list)
      self.sendDataToSocket(conn,Message)
-
-     Msg = "send_alertServiceCentre OK"
+    
+     Msg = "MT OK"
      PCA_GenLib.WriteLog(Msg,9)
     except:
-     Msg = "send_alertServiceCentre Error :<%s>,<%s>" % (sys.exc_type,sys.exc_value)
+     Msg = "MT Error :<%s>,<%s>" % (sys.exc_type,sys.exc_value)
      PCA_GenLib.WriteLog(Msg,0)
      raise
-
   ########################################################################
   #
   #

@@ -34,6 +34,11 @@ class Handler(PCA_Parser.ContentHandler):
   def __init__(self,XMLCFG):
         PCA_Parser.ContentHandler.__init__(self)
         self.Message = {}
+        Tag = "MT_FSM_ERROR"
+        self.MT_FSM_ERROR = PCA_XMLParser.GetXMLTagValue(XMLCFG,Tag)
+        Msg = "MT_FSM_ERROR = <%s> " % self.MT_FSM_ERROR
+        PCA_GenLib.WriteLog(Msg,1) 
+       
         
   def startDocument(self):
        self.ExtraSocketData = ''
@@ -121,8 +126,8 @@ class Handler(PCA_Parser.ContentHandler):
         tag_data = self.MAP_Message["MAP opCode"][1]
         opCode = self.constructTLV(tag,tag_data)
 
-        mt_fsm_return_error = 0
-        if mt_fsm_return_error == 0:
+       
+        if self.MT_FSM_ERROR == "N":
           # Success
           MAP_Tag = chr(0xa2)
        
@@ -171,7 +176,8 @@ class Handler(PCA_Parser.ContentHandler):
         message_length_hex = struct.pack("!b",message_length)
 
         map_message = MAP_Tag + message_length_hex + map_data
-        self.Message = map_message		
+        self.Message = map_message 
+        
         Msg = "getHandlerResponse OK"
         PCA_GenLib.WriteLog(Msg,9)
         
@@ -197,7 +203,7 @@ class Parser(PCA_Parser.Parser):
   app_context = 'undef'
 
   def set_handler(self,name,attrs,content):
-    self._cont_handler.startElement(name, attrs)        		
+    self._cont_handler.startElement(name, attrs) 
     self._cont_handler.characters(content)
     self._cont_handler.endElement(name)
 
@@ -249,7 +255,7 @@ class Parser(PCA_Parser.Parser):
         tag_value = smspdu.pdu.unpack7bit(attrs)
         Msg = "PCA DEBUG sms Text = %s " % tag_value
         PCA_GenLib.WriteLog(Msg,2)
-        self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,tag_name,tag_value)
+        #self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,tag_name,tag_value)
         self.set_handler("sms text",attrs,content)
 
       
@@ -429,12 +435,13 @@ class Parser(PCA_Parser.Parser):
         name = "value"
         name = "%s value" % tag
        
-
+      
         attrs = source[0:tag_length]
 
         # OpCode
         if self.invoke_id == 2 and tag_desc == "opCode":
           content = ord(attrs)
+          
           content = PCA_MAPParameters.op_code[content]
         elif tag_desc == "Originator_address" or tag_desc == "SC_Address" or tag_desc == "msisdn":
 
@@ -452,6 +459,8 @@ class Parser(PCA_Parser.Parser):
         #self.DebugStr = "%s,<%s>=<%s>" % (self.DebugStr,name,content)
         #self.set_handler(tag,attrs,content)
        
+    
+        
         if Tag_Type == 'Constructor':
            self.parseTLV(attrs)
            # DEBUG ONLY

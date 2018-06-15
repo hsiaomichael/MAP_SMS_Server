@@ -144,6 +144,7 @@ class Acceptor:
       #SocketEventFD.send(Message) 
       to=("",0)
       ppid=50331648
+    
       SocketEventFD.sctp_send(Message,to,ppid)
 
 
@@ -168,7 +169,7 @@ class Acceptor:
         Msg = "server close connection"
         PCA_GenLib.WriteLog(Msg,0)
         raise socket.error,"server close connection"
-
+    
       Msg = "ReadDataFromSocket OK"
       PCA_GenLib.WriteLog(Msg,9)
       return Message

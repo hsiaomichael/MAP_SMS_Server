@@ -43,10 +43,9 @@ class Writer:
       Tag = "SC_ADDRESS"
       self.sc_address = PCA_XMLParser.GetXMLTagValue(XMLCFG,Tag)
       Msg = "sc_address = <%s> " % self.sc_address
-      PCA_GenLib.WriteLog(Msg,1)
-      Tag = "alert_MSISDN" 
-      self.alert_MSISDN = PCA_XMLParser.GetXMLTagValue(XMLCFG,Tag)
-      
+      PCA_GenLib.WriteLog(Msg,1)    
+     
+    
       self.XMLCFG = XMLCFG
 
       Msg = "Writer OK"
@@ -222,11 +221,11 @@ class Writer:
       #########################################################
       elif map_type == "SRI-SM":
         Msg = "construct SRI-SM request"
-        PCA_GenLib.WriteLog(Msg,1)
+        PCA_GenLib.WriteLog(Msg,2)
         MAP_Tag = chr(0xa1)
 
         noa = chr(0x91)
-        digits = PCA_GenLib.converStringToReverseBCD(self.sc_address)
+        digits = PCA_GenLib.converStringToReverseBCD(parameter_list["fsg_sca"][1])
         tag = chr(0x82)
         tag_data = noa + digits
         sc_address = self.constructTLV(tag,tag_data)
@@ -235,8 +234,9 @@ class Writer:
         tag_data = chr(0x01)
         SM_RP_PRI = self.constructTLV(tag,tag_data)
 
+        
         noa = chr(0x91)
-        digits = PCA_GenLib.converStringToReverseBCD(parameter_list["recipient"])
+        digits = PCA_GenLib.converStringToReverseBCD(parameter_list["recipient"][1])
         tag = chr(0x80)
         tag_data = noa + digits
         msisdn = self.constructTLV(tag,tag_data)
@@ -247,13 +247,14 @@ class Writer:
 
 
         tag = chr(0x02)
-        tag_data = chr(0x02)
+        tag_data = struct.pack("!B",PCA_MAPParameters.sendRoutingInfoForSM)
         opCode = self.constructTLV(tag,tag_data)
 
 
         tag = chr(0x02)
         tag_data = chr(0x7d)
         invoke_id = self.constructTLV(tag,tag_data)
+        
         map_data = invoke_id + opCode + address_info
 
 
@@ -271,9 +272,9 @@ class Writer:
         tag = chr(0x02)
         tag_data = tag_data = struct.pack("!b",PCA_MAPParameters.alertServiceCentre)
         opCode = self.constructTLV(tag,tag_data)
-
+        alert_MSISDN = parameter_list['alert_MSISDN'][0]
         noa = chr(0x91)
-        digits = PCA_GenLib.converStringToReverseBCD(self.alert_MSISDN)
+        digits = PCA_GenLib.converStringToReverseBCD(alert_MSISDN)
 
         tag = chr(0x04)
         tag_data = noa + digits
@@ -432,7 +433,7 @@ class Writer:
 
         TP_RP = chr(0x04)
 
-        digits = PCA_GenLib.converStringToReverseBCD(parameter_list["originator"])
+        digits = PCA_GenLib.converStringToReverseBCD(parameter_list["originator"][0])
         address_len = struct.pack("!B",len(digits)*2)
         toa = chr(0x91)
         TP_OA = address_len + toa + digits
@@ -466,22 +467,24 @@ class Writer:
          #    PCA_GenLib.WriteLog(Msg,3)
 
 
-        TP_user_data = parameter_list["sms_text"]
-        TP_user_data_length = struct.pack("!B",len(TP_user_data))
+        TP_user_data = parameter_list['sms_text'][0]
+        message_length_int = parameter_list['sms_text_length'][0]
+        TP_user_data_length = struct.pack("!B",message_length_int)
+
 
         tag = chr(0x04)
         tag_data = TP_RP + TP_OA + TP_PID + TP_DCS + TP_SC_timestamp + TP_user_data_length + TP_user_data
         SM_RP_PRI = self.constructTLV(tag,tag_data)
 
         noa = chr(0x91)
-        digits = PCA_GenLib.converStringToReverseBCD(self.sc_address)
+        digits = PCA_GenLib.converStringToReverseBCD(parameter_list["sca"][0])
         tag = chr(0x84)
         tag_data = noa + digits
         sc_address = self.constructTLV(tag,tag_data)
 
 
         #noa = chr(0x91)
-        digits = PCA_GenLib.converStringToReverseBCD(parameter_list["recipient_imsi"])
+        digits = PCA_GenLib.converStringToReverseBCD(parameter_list["imsi"][0])
         tag = chr(0x80)
         #tag_data = noa + digits
         tag_data = digits
@@ -493,7 +496,8 @@ class Writer:
 
 
         tag = chr(0x02)
-        tag_data = chr(0x2c)  #MT-FSM
+        
+        tag_data = struct.pack("!B",PCA_MAPParameters.mt_ForwardSM)
         opCode = self.constructTLV(tag,tag_data)
 
 

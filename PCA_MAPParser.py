@@ -1,6 +1,6 @@
 ########################################################################################
 #
-# Filename:    PCA_TCAPParser.py
+# Filename:    PCA_MAPParser.py
 #  
 # Description
 # ===========
@@ -54,9 +54,13 @@ class Handler(PCA_Parser.ContentHandler):
       self.attrs = attrs
       if name == "version":        
         self.version =  attrs
-      if name == "otid":        
+      elif name == "otid":        
         self.tcap_otid =  attrs        
-        
+      elif self.MessageName == "MAP imsi":
+        self.imsi = content
+      elif self.MessageName == "MAP NNN":
+        self.NNN = content
+    
       Msg = "startElement OK"
       PCA_GenLib.WriteLog(Msg,9)        
     except:

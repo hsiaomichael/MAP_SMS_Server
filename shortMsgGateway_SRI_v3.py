@@ -31,16 +31,19 @@ class Handler(PCA_Parser.ContentHandler):
   Message = ""
   MAP_Message = {}
   dup_tag = 0
-  NNN = "000000000"
-  sri_imsi = "231011400000188f"
+  sri_resp_NNN = "000000000"
+  sri_resp_imsi = "231011400000188f"
+  NNN = ''
+  imsi = ''
+     
   def __init__(self,XMLCFG):
     PCA_Parser.ContentHandler.__init__(self)
     self.Message = {}
     Tag = "NNN"
-    self.NNN = PCA_XMLParser.GetXMLTagValue(XMLCFG,Tag)
+    self.sri_resp_NNN = PCA_XMLParser.GetXMLTagValue(XMLCFG,Tag)
     
     Tag = "SRI_RESP_IMSI"
-    self.sri_imsi = PCA_XMLParser.GetXMLTagValue(XMLCFG,Tag)
+    self.sri_resp_imsi = PCA_XMLParser.GetXMLTagValue(XMLCFG,Tag)
     
   def startDocument(self):
        self.ExtraSocketData = ''
@@ -84,9 +87,14 @@ class Handler(PCA_Parser.ContentHandler):
       Msg = "%-20s=<%-25s>,Hex=%s" % (self.MessageName ,content,PCA_GenLib.HexDump(self.attrs))
       PCA_GenLib.WriteLog(Msg,3)
       Msg = "%s=%s" % (self.MessageName ,content)
-      PCA_GenLib.WriteLog(Msg,2)
+      PCA_GenLib.WriteLog(Msg,1)
       if self.MessageName == "MAP opCode":
         self.opCode = content
+      elif self.MessageName == "MAP imsi value":
+        self.imsi = content
+      elif self.MessageName == "MAP NNN value":
+        self.NNN = content
+    
      
       Msg = "characters OK"
       PCA_GenLib.WriteLog(Msg,9)
@@ -118,7 +126,7 @@ class Handler(PCA_Parser.ContentHandler):
         noa = chr(0x91)
         
         
-        nnn_bcd = PCA_GenLib.converStringToReverseBCD(self.NNN)
+        nnn_bcd = PCA_GenLib.converStringToReverseBCD(self.sri_resp_NNN)
         tag = chr(0x81)
         tag_data = noa + nnn_bcd
         locationinfo_with_LMSI = self.constructTLV(tag,tag_data)
@@ -127,7 +135,7 @@ class Handler(PCA_Parser.ContentHandler):
         tag_data = locationinfo_with_LMSI
         location_data = self.constructTLV(tag,tag_data)
 
-        digits = PCA_GenLib.converStringToReverseBCD(self.sri_imsi)
+        digits = PCA_GenLib.converStringToReverseBCD(self.sri_resp_imsi)
         
      
         tag = chr(0x04)
@@ -223,7 +231,9 @@ class Handler(PCA_Parser.ContentHandler):
       Msg = "getHandlerResponse  error : <%s>,<%s> " % (sys.exc_type,sys.exc_value)
       PCA_GenLib.WriteLog(Msg,0)
       raise
-
+ 
+#  def getSRI_SM_resp(self):
+#       return (self.imsi,self.NNN)
 #########################################################################
 # 
 #
